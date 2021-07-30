@@ -23,10 +23,10 @@ This is a proportionality factor that is multiplied by the normalized local conn
 The probability that the conflict in any grid cell will be resolved in the current timestep.  A real-valued number between 0 and 1.  Can be set with a slider in the GUI.
 
 ### unrest grid
-A spatial grid of values (2D array) that gives a measure of the "unrest", or potential for conflict to emerge, in each grid cell.  It depends on indicators such as population count, average rainfall rate, and many others.  This grid is currently pre-computed for the user as a function of several indicators.  It is fixed for each model run for a given region.
+A spatial grid of values (2D array) that gives a measure of the "unrest", or potential for conflict to emerge, in each grid cell.  It depends on indicators such as population count, average rainfall rate, and many others.  This grid is currently pre-computed for the user as a function of several indicators.  It is fixed for each model run for a given region.  Must be in GeoTIFF format and all grids must have same dimensions.
 
 ### local connectivity grid
-This is a spatial grid of values (2D array) that gives a measure of the "local connectivty", or potential for conflict to spread, in each grid cell.  It depends on indicators such as accessibility, road density, etc..  This grid is currently pre-computed for the user as a function of several indicators.  It is fixed for each model run for a given region.
+This is a spatial grid of values (2D array) that gives a measure of the "local connectivty", or potential for conflict to spread, in each grid cell.  It depends on indicators such as accessibility, road density, etc..  This grid is currently pre-computed for the user as a function of several indicators.  It is fixed for each model run for a given region.  Must be in GeoTIFF format and all grids must have same dimensions.
 
 ### nonlocal connectivity grid
-This is a spatial grid of values (2D array) that gives a measure of the "nonlocal connectivty", or potential for conflict to spread to distant grid cells, in each grid cell.  It depends on indicators such as internet and cell phone access.  This grid is currently pre-computed for the user as a function of several indicators.  It is fixed for each model run for a given region.
+This is a spatial grid of values (2D array) that gives a measure of the "nonlocal connectivty", or potential for conflict to spread to distant grid cells, in each grid cell.  It depends on indicators such as internet and cell phone access.  This grid is currently pre-computed for the user as a function of several indicators.  It is fixed for each model run for a given region.  Must be in GeoTIFF format and all grids must have same dimensions.
