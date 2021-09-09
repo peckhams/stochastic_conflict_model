@@ -7,7 +7,7 @@ There is also a Jupyter notebook (see notebook folder) which has a graphical use
 
 The model can also be run at a Python command line or at a Unix prompt.  For example:
 ``` bash
-  % cd stochastic_conflict_model <br> 
+  % cd stochastic_conflict_model 
   % python conflict --cfg_file './input_files/conflict.cfg'
 ```
 
