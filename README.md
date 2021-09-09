@@ -5,8 +5,8 @@ This grid-based, stochastic model simulates the triggering of conflict in areas 
 
 There is also a Jupyter notebook (see notebook folder) which has a graphical user interface (GUI), with sliders and text boxes, for running the model.  Instructions for installing the package are included in the notebook.  Values from the GUI are written to the model's configuration file.  Model output can also be visualized within the notebook with built-in graphics routines.
 
-The model can also be run at a Python command line or at a Unix prompt.  For example:
-  % cd stochastic_conflict_model
+The model can also be run at a Python command line or at a Unix prompt.  For example:  
+  % cd stochastic_conflict_model. 
   % python conflict --cfg_file './input_files/conflict.cfg'
 
 This model is a work in progress and has not yet been calibrated against conflict data (e.g. number of fatalities, type of conflict) because of the difficulty in obtaining reliable data that is grid-based vs. aggregated for admininstrative regions.  We are investigating various data sources including ACLED and GDELT for this purpose.  Current applications and testing are for the Horn of Africa.
