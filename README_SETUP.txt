@@ -40,6 +40,7 @@ $ conda install numpy
 $ conda install pandas
 $ conda install matplotlib
 $ conda install gdal
+$ conda install pip
 
 # Install the model package using its setup.py
 $ cd stochastic_conflict_model
@@ -58,3 +59,4 @@ $ python conflict --cfg_file './input_files/conflict_Upopcount2.cfg'
 # Output files are spatial grid stacks, currently in the simple binary RTS format
     with RTI header file.  (RTS = RiverTools Sequence; RTI = RiverTools information)
 # NetCDF format for output files is coming soon.
+
