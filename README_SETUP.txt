@@ -19,7 +19,8 @@ $
 
 # Install miniconda for Linux
 # See:  https://gist.github.com/arose13/fcc1d2d5ad67503ba9842ea64f6bac35
-$  wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ~/miniconda.sh
+# Note:  repo.continuum.io is now repo.anaconda.com.
+$  wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ~/miniconda.sh
 $  bash ~/miniconda.sh -b -p ~/miniconda 
 $  rm ~/miniconda.sh
 $  export PATH=~/miniconda/bin:$PATH
