@@ -1,6 +1,13 @@
 
 #  Copyright (c) 2021, Scott D. Peckham
-#  May 2021.  Started on May 17 for Localized Conflict Modeling.
+#
+#  Sept 2021. create_rti_file().  Convert RTS to netCDF.
+#  Aug  2021. 
+#  July 2021. Jupyter notebook with ipywidgets GUI and ability
+#             to visualize model output.
+#  June 2021. Further development and testing.
+#             Prepared as a Python package.
+#  May  2021. Started on May 17 for Localized Conflict Modeling.
 #             First, read GPW population count data as GeoTIFF.
 #             Write-up and theoretical results in late May.
 #-------------------------------------------------------------------
@@ -10,6 +17,8 @@
 #
 #  class conflict()
 #      initialize()
+#      read_config_file()
+#      create_rti_file()
 #      initialize_U()
 #      initialize_C1()
 #      initialize_C2()
@@ -29,17 +38,18 @@
 #      get_neighbor_cols_and_rows()
 #      get_neighbor_values()
 #      spread_conflicts1()
-#      spread_conflicts2()
 #      finalize()
 #      run_model()
 #
 #-------------------------------------------------------------------
 import numpy as np
 import numpy.random as rn
-#### import random as rn
+
 import time
 import os, os.path
 from conflict.utils import geotiff as geo
+from conflict.utils import rti_files
+
 # from conflict.utils import acled as ac
 
 #-------------------------------------------------------------------
@@ -118,8 +128,8 @@ class conflict():
             self.read_config_file()
         else:
             self.n_steps  = 100       
-            self.n_cols       = 240
-            self.n_rows       = 240       
+            self.n_cols   = 240
+            self.n_rows   = 240       
             #----------------------------------------------
             self.U_file   = ''     # (To use uniform U)            
             self.C1_file  = ''
@@ -150,8 +160,25 @@ class conflict():
         self.n_conflict_cells = 0
         self.grid_shape  = (self.n_rows, self.n_cols)
         ## self.start_time  = time.time()
-        self.start_ID    = 1
+        ### self.start_ID    = 1
         self.start_index = 0
+
+        #----------------------------------
+        # Georeferencing:  Horn of Africa
+        #----------------------------------
+        self.min_lat = -5.0
+        self.max_lat = 25.0
+        self.min_lon = 25.0
+        self.max_lon = 55.0
+        lon_range_deg = (self.max_lon - self.min_lon)
+        lat_range_deg = (self.max_lat - self.min_lat)
+        #-----------------------------------------------
+        # If n_cols = n_rows = 240, xres = yres = 450.
+        # If n_cols = n_rows = 360, xres = yres = 300.
+        #-----------------------------------------------        
+        self.xres_arcsecs = lon_range_deg * 3600 / self.n_cols
+        self.yres_arcsecs = lat_range_deg * 3600 / self.n_rows
+        self.create_rti_file()
 
         #----------------------------
         # Change to input directory
@@ -187,6 +214,7 @@ class conflict():
         self.S    = np.zeros( self.grid_shape, dtype='uint8' )
         self.durs = np.zeros( self.grid_shape, dtype='uint32')
         self.IDs  = np.zeros( self.grid_shape, dtype='float32')
+        
         #----------------------------------------------------------
         # Create a set of random integer IDs, without replacement
         # so when we colorize, it will look better.
@@ -194,6 +222,14 @@ class conflict():
         self.ran_IDs = rn.choice( 10000000, 10000000, replace=False)
         # This next method used built-in random & and problems.
         ### self.ran_IDs = rn.sample( range(1000000), 500000)
+        
+        #------------------------------------------------
+        # Assign ocean grid cells their own, nonzero ID
+        #------------------------------------------------
+        w1 = (self.U == 0)   # boolean array
+        self.IDs[ w1 ] = 10000000   # Use new "BLUE_ONE" option.
+        # self.IDs[ w1 ] = self.ran_IDs[0]
+
         self.start_time  = time.time()
         
     #   initialize()
@@ -244,6 +280,31 @@ class conflict():
             print()
         
     #   read_config_file()
+    #---------------------------------------------------------------    
+    def create_rti_file( self ):
+    
+        rts_file = self.IDs_file
+        info = rti_files.make_info(
+                  grid_file=rts_file,
+                  ncols=self.n_cols, nrows=self.n_rows,
+                  xres=self.xres_arcsecs,
+                  yres=self.yres_arcsecs,
+                  #---------------------------------
+                  data_source='Stochastic Conflict Model',
+                  data_type='FLOAT',
+                  # byte_order='LSB',
+                  # byte_order=get_rti_byte_order(),
+                  pixel_geom=0,
+                  zres=0.01, z_units='unknown',
+                  y_south_edge=self.min_lat,
+                  y_north_edge=self.max_lat,
+                  x_west_edge =self.min_lon,
+                  x_east_edge =self.max_lon,
+                  box_units='DEGREES')
+ 
+        rti_files.write_info(rts_file, info)
+ 
+    #   create_rti_file()
     #---------------------------------------------------------------
     def initialize_U( self ):
 
