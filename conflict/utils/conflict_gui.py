@@ -57,7 +57,7 @@ class conflict_gui:
         self.next_label_width  = 70
         self.all_label_width   = 170
         # self.full_box_width    = 540  # (orig)
-        self.full_box_width    = 500
+        self.full_box_width    = 550
         self.widget_width      = (self.full_box_width - self.left_label_width)
         # self.half_widget_width = (self.full_box_width - self.all_label_width)/2
         # self.half_widget_width = 183
@@ -67,7 +67,7 @@ class conflict_gui:
         self.next_box_width    = (self.next_label_width + self.next_widget_width)
         self.button_width      = 70   # big enough for "Reset"
         #-----------------------------------------------------
-        self.default_U_file    = '(none, uniform)'
+        self.default_U_file    = 'input_files/Horn_of_Africa_GPW-v4_pop_count_2020_450sec.tif'
         self.default_C1_file   = '(none, uniform)'
         self.default_C2_file   = '(none, uniform)'
         self.default_gui_cfg_file = '~/Conflict/Input/gui_conflict.cfg'
@@ -148,7 +148,7 @@ class conflict_gui:
         # R_tags = "</font></b>"
         # heading = (L_tags + title + R_tags)
         pad  = self.get_padding(1, HORIZONTAL=False)  # 1 lines
-        head = widgets.HTML(value=f"<font size=5>Conflict 0.5 User Interface</font>")
+        head = widgets.HTML(value=f"<font size=5>Stochastic Conflict Model User Interface</font>")
         # head = widgets.Label('Conflict 0.5 User Interface')
         ## self.gui = widgets.VBox([pad, head, acc])
         self.gui = widgets.VBox([head, tab])   # (no padding above)
@@ -217,7 +217,7 @@ class conflict_gui:
                                  readout=True, readout_format='.3f',
                                  style=left_style,
                                  layout=Layout(width=full_width_px))
-        o8 = widgets.FloatSlider(description='Spreading factor:', value=0.3,
+        o8 = widgets.FloatSlider(description='Spreading factor:', value=0.2,
                                  min=0.0, max=1.0, step=0.001,
                                  disabled=False,
                                  continuous_update=False,
@@ -225,7 +225,7 @@ class conflict_gui:
                                  readout=True, readout_format='.3f',
                                  style=left_style,
                                  layout=Layout(width=full_width_px))
-        o9 = widgets.FloatSlider(description='Resolution probability:', value=0.3,
+        o9 = widgets.FloatSlider(description='Resolution probability:', value=0.47,
                                  min=0.0, max=1.0, step=0.001,
                                  disabled=False,
                                  continuous_update=False,

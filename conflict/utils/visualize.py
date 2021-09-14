@@ -184,6 +184,7 @@ def read_and_show_rtg( rtg_filename, long_name, VERBOSE=True,
 #--------------------------------------------------------------------
 def show_grid_as_image( grid, long_name, extent=None,
                         cmap='rainbow', BLACK_ZERO=False,
+                        LAND_SEA_BACKDROP=False,
                         stretch='power3',
                         a=1, b=2, p=0.5,
                         NO_SHOW=False, im_file=None,
@@ -225,12 +226,29 @@ def show_grid_as_image( grid, long_name, extent=None,
     # cmap arg to imshow can be name (as str) or cmap array
     # 4th entry is opacity, or alpha channel (I think)
     #--------------------------------------------------------
+    # See: "Creating listed colormaps" section at:
+    # https://matplotlib.org/3.1.0/tutorials/colors/
+    #         colormap-manipulation.html
+    #--------------------------------------------------------
+    # "Land green" = #c6e5bc = (198, 229, 188)
+    # "Sea blue"   = #aad3df = (170, 211, 223)
+    #--------------------------------------------------------
     if (BLACK_ZERO):
         n_colors = 256
         color_map  = cm.get_cmap( cmap, n_colors )
-        new_colors = color_map( np.linspace(0, 1, 256) )
+        new_colors = color_map( np.linspace(0, 1, n_colors) )
+        land_green = np.array([198, 229, 188, 256]) / 256.0
         black = np.array([0.0, 0.0, 0.0, 1.0])
         new_colors[0,:] = black
+        new_cmap = ListedColormap( new_colors )
+    elif (LAND_SEA_BACKDROP):
+        n_colors = 256
+        color_map  = cm.get_cmap( cmap, n_colors )
+        new_colors = color_map( np.linspace(0, 1, n_colors) )
+        land_green = np.array([198, 229, 188, 256]) / 256.0
+        sea_blue   = np.array([170, 211, 223, 256]) / 256.0
+        new_colors[0,:]   = land_green
+        new_colors[255,:] = sea_blue
         new_cmap = ListedColormap( new_colors )
     else:
         new_cmap = cmap
