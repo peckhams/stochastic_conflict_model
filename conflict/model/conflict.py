@@ -37,7 +37,8 @@
 #--------------------------------------
 #      get_neighbor_cols_and_rows()
 #      get_neighbor_values()
-#      spread_conflicts1()
+#      spread_conflicts_local1()
+#      spread_conflicts_nonlocal1()
 #      finalize()
 #      run_model()
 #
@@ -119,7 +120,7 @@ class conflict():
     def initialize( self, cfg_file=None ):
 
         home_dir = os.path.expanduser('~') + os.sep
-        
+                    
         if (cfg_file is not None):
             #-----------------------------------
             # Read params from the config file
@@ -149,6 +150,7 @@ class conflict():
             self.c_spread = 0.4
             ## self.c_spread = 0.03
             ## self.c_spread = 0.05
+            self.c_spread2 = 0.0
             self.p_resolve = 0.4
             #----------------------------------------
             self.spread_method = 1
@@ -165,7 +167,9 @@ class conflict():
 
         #----------------------------------
         # Georeferencing:  Horn of Africa
-        #----------------------------------
+        #--------------------------------------
+        # Move some of this into the CFG file
+        #--------------------------------------
         self.min_lat = -5.0
         self.max_lat = 25.0
         self.min_lon = 25.0
@@ -218,16 +222,19 @@ class conflict():
         #----------------------------------------------------------
         # Create a set of random integer IDs, without replacement
         # so when we colorize, it will look better.
+        # (I think this works as an iterator.)
         #----------------------------------------------------------
-        self.ran_IDs = rn.choice( 10000000, 10000000, replace=False)
+        max_ID = 10000000
+        self.ran_IDs = rn.choice( max_ID, max_ID, replace=False)
         # This next method used built-in random & and problems.
         ### self.ran_IDs = rn.sample( range(1000000), 500000)
         
         #------------------------------------------------
         # Assign ocean grid cells their own, nonzero ID
+        # Use new "LAND_SEA_BACKDROP" option (via w1).
         #------------------------------------------------
         w1 = (self.U == 0)   # boolean array
-        self.IDs[ w1 ] = 10000000   # Use new "BLUE_ONE" option.
+        self.IDs[ w1 ] = max_ID
         # self.IDs[ w1 ] = self.ran_IDs[0]
 
         self.start_time  = time.time()
@@ -337,12 +344,22 @@ class conflict():
         if (self.C1_file != ''):
             self.C1 = geo.read_geotiff(in_file=self.C1_file,
                                        REPORT=True)
+            # In case of negative nodata value
+            np.maximum(self.C1, 0.0, self.C1)   # (in place)
         else:        
             #---------------------    
             # Use a grid of ones
             #---------------------
             self.C1 = np.ones( self.grid_shape, dtype='float32' )
-        
+
+        #---------------------------------------------
+        # Disallow conflict spreading on the 4 edges
+        #---------------------------------------------
+        self.C1[0,:]               = 0.0
+        self.C1[self.n_rows - 1,:] = 0.0
+        self.C1[:,0]               = 0.0
+        self.C1[:,self.n_cols - 1] = 0.0
+                
     #   initialize_C1()
     #---------------------------------------------------------------
     def initialize_C2( self ):
@@ -350,11 +367,21 @@ class conflict():
         if (self.C2_file != ''):
             self.C2 = geo.read_geotiff(in_file=self.C2_file,
                                        REPORT=True)
+            # In case of negative nodata value
+            np.maximum(self.C2, 0.0, self.C2)   # (in place)
         else:        
             #---------------------    
             # Use a grid of ones
             #---------------------
             self.C2 = np.ones( self.grid_shape, dtype='float32' )
+
+        #---------------------------------------------
+        # Disallow conflict spreading on the 4 edges
+        #---------------------------------------------
+        self.C2[0,:]               = 0.0
+        self.C2[self.n_rows - 1,:] = 0.0
+        self.C2[:,0]               = 0.0
+        self.C2[:,self.n_cols - 1] = 0.0
         
     #   initialize_C2()
     #---------------------------------------------------------------
@@ -465,21 +492,27 @@ class conflict():
             if (self.spread_method == 0):   
                 print()
  
-        #----------------------------------   
-        # Attempt to spread the conflicts
+        #------------------------------------------   
+        # Attempt to spread the conflicts locally
         #------------------------------------------------
         # Set spread_method == 0 to turn off spreading,
         # e.g. to test against theoretical results.
         #------------------------------------------------
         if (self.spread_method == 1):
-            self.spread_conflicts1()
+            self.spread_conflicts_local1()
 #         elif (self.spread_method == 2):
 #             self.spread_conflicts2()
 #         elif (self.spread_method == 3):
 #             self.spread_conflicts3()
 #         else:
 #             pass
-         
+
+        #---------------------------------------------   
+        # Attempt to spread the conflicts nonlocally
+        #---------------------------------------------
+        if (self.spread_method == 1):
+            self.spread_conflicts_nonlocal1()
+                 
         SAVE_S = True
         if (SAVE_S):
             #---------------------------------
@@ -561,21 +594,27 @@ class conflict():
             print('Number of resolved conflicts =', n3)   
             print()
 
-        #----------------------------------   
-        # Attempt to spread the conflicts
+        #------------------------------------------   
+        # Attempt to spread the conflicts locally
         #------------------------------------------------
         # Set spread_method == 0 to turn off spreading,
         # e.g. to test against theoretical results.
         #------------------------------------------------
         if (self.spread_method == 1):
-            self.spread_conflicts1()
+            self.spread_conflicts_local1()
 #         elif (self.spread_method == 2):
 #             self.spread_conflicts2()
 #         elif (self.spread_method == 3):
 #             self.spread_conflicts3()
 #         else:
 #             pass
-         
+
+        #---------------------------------------------   
+        # Attempt to spread the conflicts nonlocally
+        #---------------------------------------------
+        # if (self.spread_method == 1):
+        #     self.spread_conflicts_nonlocal1()
+                             
         SAVE_S = True
         if (SAVE_S):
             #---------------------------------
@@ -679,7 +718,7 @@ class conflict():
         # e.g. to test against theoretical results.
         #------------------------------------------------
         if (self.spread_method == 1):
-            self.spread_conflicts1()
+            self.spread_conflicts_local1()
 #         elif (self.spread_method == 2):
 #             self.spread_conflicts2()
 #         elif (self.spread_method == 3):
@@ -792,7 +831,7 @@ class conflict():
         # e.g. to test against theoretical results.
         #------------------------------------------------
         if (self.spread_method == 1):
-            self.spread_conflicts1()
+            self.spread_conflicts_local1()
 #         elif (self.spread_method == 2):
 #             self.spread_conflicts2()
 #         elif (self.spread_method == 3):
@@ -821,10 +860,18 @@ class conflict():
         
     #   update_time()
     #---------------------------------------------------------------    
-    def get_neighbor_cols_and_rows( self, w1, n1 ):
+    def get_neighbor_cols_and_rows( self, w1, n1, NO_EDGES=False ):
 
         cols = self.col_grid[ w1 ]
         rows = self.row_grid[ w1 ]
+
+        #------------------------------------------        
+        # Exclude edges using in-place operations
+        #------------------------------------------
+        if (NO_EDGES):
+           np.minimum( np.maximum(cols,1,cols), self.n_cols-2, cols)
+           np.minimum( np.maximum(rows,1,rows), self.n_rows-2, rows)
+        
         #--------------------------------------------------
         # 1st index is over grid cells that have conflict.
         # 2nd index is over the 8 nearest neighbors.
@@ -878,8 +925,14 @@ class conflict():
         
     #   get_neighbor_values()    
     #---------------------------------------------------------------
-    def spread_conflicts1( self, USE_LOOP=False ):
+    def spread_conflicts_local1( self, USE_LOOP=False ):
  
+        if (self.c_spread == 0):
+            if (self.REPORT):
+                print('No local spreading: c_spread = 0.')
+                print()
+            return
+
         #-------------------------------------------------   
         # Note:  Can only spread to cells that have S=0.
         #-------------------------------------------------
@@ -909,29 +962,40 @@ class conflict():
         #---------------------------------------------
         # Get nearest neighbor values for U, S, & C1
         #---------------------------------------------
-        self.get_neighbor_cols_and_rows( w1, n1 )
-        #---------------------------------------------
+        self.get_neighbor_cols_and_rows( w1, n1, NO_EDGES=True)
+
+        #---------------------------------------        
+        # One of more of these is needed below
+        #---------------------------------------
         ## Sn  = self.get_neighbor_values( self.S,  n1) 
-        Un  = self.get_neighbor_values( self.U,  n1)
-        ## C1n = self.get_neighbor_values( self.C1, n1)
+        ## Un  = self.get_neighbor_values( self.U,  n1)
+        C1n = self.get_neighbor_values( self.C1, n1)
 
         #------------------------------------------------        
         # Compute probability of spreading to neighbors
         #------------------------------------------------
         # The "None trick" shown here allows us to do
         # the following for all k at once:
-        # pn[k,:]  = Un[k,:] * (c2 / Un[k,:].max() )
+        # pn[k,:]  = C1n[k,:] * (c2 / C1n[k,:].max() )
         # Need c2 = c_spread to be in (0,1].
         # np.amax lets us take the max along an axis.
         #------------------------------------------------
-        # NOTE: Un and pn have shape = (n1, 8)
+        # NOTE: Un, C1n and pn have shape = (n1, 8)
         # NOTE: pn is initialized & defaults to 0.
         #------------------------------------------------    
-        Un_max = np.amax( Un, axis=1 )  # a 1D array
-        wg = (Un_max > 0)
-        pn = np.zeros(Un.shape, dtype='float32')
-        pn[ wg,: ] = self.c_spread * Un[wg,:] / (Un_max[wg,None])
-       
+        C1n_max = np.amax( C1n, axis=1 )  # a 1D array
+        wg = (C1n_max > 0)
+        pn = np.zeros(C1n.shape, dtype='float32')
+        pn[ wg,: ] = self.c_spread * C1n[wg,:] / (C1n_max[wg,None])
+
+        #------------------------------------
+        # Alternate method that uses only U
+        #------------------------------------
+        # Un_max = np.amax( Un, axis=1 )  # a 1D array
+        # wg = (Un_max > 0)
+        # pn = np.zeros(Un.shape, dtype='float32')
+        # pn[ wg,: ] = self.c_spread * Un[wg,:] / (Un_max[wg,None])
+               
         #--------------------------------------
         # Alternate method that uses U and C1
         #--------------------------------------
@@ -999,7 +1063,234 @@ class conflict():
             print('Number of spread conflicts =', n_spread)
             print()
         
-    #   spread_conflicts1()
+    #   spread_conflicts_local1()
+    #---------------------------------------------------------------
+    def spread_conflicts_nonlocal1( self, USE_LOOP=True ):
+ 
+        if (self.c_spread2 == 0):
+            if (self.REPORT):
+                print('No nonlocal spreading: c_spread2 = 0.')
+                print()
+            return
+
+        #-------------------------------------------------   
+        # Note:  Can only spread to cells that have S=0.
+        #-------------------------------------------------
+        w1 = (self.S == 1)
+        n1 = w1.sum()
+        if (n1 == 0):
+            print('No conflicts to spread at time:', self.time_index)
+            return
+
+        if (USE_LOOP):
+            # Usually, only a few of these are unique
+            ## ID_vals = self.IDs[ w1 ]  #(for the for loop version)
+            
+            ID_vals, ID_counts = np.unique( self.IDs[ w1 ], return_counts=True)
+            n_IDs = ID_vals.size
+#         else:
+#             ID_vals = np.tile( np.array([self.IDs[w1]]).transpose(), (1,8))
+
+        #--------------------------------------------------------        
+        # Compute probability that a given conflict (many cells
+        # with same ID) will spread to any other grid cell
+        #--------------------------------------------------------
+        # The "size" of a given conflict can be measured as
+        # the number of conflict grid cells with the same ID.
+        # We could take the probability that a given conflict
+        # spreads to remote cells as proportional to this size,
+        # because there is more "coverage" of larger conflicts.
+        #-------------------------------------------------------
+        n_start = self.n_conflict_cells
+        ID_count_max = np.max( ID_counts )
+        ## product_max = np.max( self.U ) * ID_count_max
+                
+        for k in range(n_IDs):
+            # Use U to exclude ocean & lake grid cells, etc.
+            w2 = np.logical_and(self.S == 0, self.U != 0)
+            ## w2 = (self.S == 0)   # (no-conflict cell locations)
+            n2 = w2.sum()
+
+            #----------------------------------------------            
+            # Generate grid of Bernoulli random variables
+            # using a grid of probabilities
+            #----------------------------------------------
+            if (n2 > 0):
+                p = np.zeros(self.C2.shape, dtype='float32')
+                #---------------------------------------------------
+                # Option 1.  Both U and size of conflict affect p.
+                #---------------------------------------------------
+                product_max = np.max( self.U[w2] ) * ID_count_max
+                R = (self.U[w2] * ID_counts[k]) / product_max
+                p[ w2 ] = self.c_spread2 * R
+                #---------------------------------------------------
+                # R = (self.U * ID_counts[k]) / product_max
+                # p[ w2 ] = self.c_spread2 * R[ w2 ]
+                                                    
+                #----------------------------------------------
+                # Option 2.  Only size of conflict affects p.
+                #----------------------------------------------
+                # p[ w2 ] = self.c_spread2 * ID_counts[k] / ID_count_max
+                
+                B  = np.random.binomial(1, p)  # entire grid
+                ## B  = B.astype( 'uint8' )  ######
+                w3 = (B == 1)   # (boolean array)
+                n3 = w3.sum()
+
+                self.S[ w3 ] = 1
+                self.IDs[ w3 ]  = ID_vals[k]
+                self.n_conflict_cells += n3
+                     
+        if (self.REPORT):
+            n_spread = (self.n_conflict_cells - n_start)
+            print('Number of spread conflicts =', n_spread)
+            print()
+        
+    #   spread_conflicts_nonlocal1()
+    #---------------------------------------------------------------
+    def spread_conflicts_nonlocal2( self, USE_LOOP=True ):
+ 
+        if (self.c_spread2 == 0):
+            if (self.REPORT):
+                print('Number of spread conflicts = 0.')
+                print('  c_spread2 = 0.')
+                print()
+            return
+
+        #-------------------------------------------------   
+        # Note:  Can only spread to cells that have S=0.
+        #-------------------------------------------------
+        w1 = (self.S == 1)
+        n1 = w1.sum()
+        if (n1 == 0):
+            print('No conflicts to spread at time:', self.time_index)
+            return
+
+        if (USE_LOOP):
+            # Usually, only a few of these are unique
+            ## ID_vals = self.IDs[ w1 ]  #(for the for loop version)
+            
+            ID_vals, ID_counts = np.unique( self.IDs[ w1 ], return_counts=True)
+            n_IDs = ID_vals.size
+#         else:
+#             ID_vals = np.tile( np.array([self.IDs[w1]]).transpose(), (1,8))
+
+        #--------------------------------------------------------        
+        # Compute probability that a given conflict (many cells
+        # with same ID) will spread to any other grid cell
+        #--------------------------------------------------------
+        # The "size" of a given conflict can be measured as
+        # the number of conflict grid cells with the same ID.
+        # We could take the probability that a given conflict
+        # spreads to remote cells as proportional to this size,
+        # because there is more "coverage" of larger conflicts.
+        #-------------------------------------------------------
+        n_start = self.n_conflict_cells
+        ID_count_max = np.max( ID_counts )
+        
+        for k in range(n_IDs):
+            # Use U to exclude ocean & lake grid cells, etc.
+            w2 = np.logical_and(self.S == 0, self.U != 0)
+            ## w2 = (self.S == 0)   # (no-conflict cell locations)
+            n2 = w2.sum()
+
+            #----------------------------------------------            
+            # Generate grid of Bernoulli random variables
+            # using a grid of probabilities
+            #----------------------------------------------
+            if (n2 > 0):
+                p = np.zeros(self.C2.shape, dtype='float32')
+                p[ w2 ] = self.c_spread2 * ID_counts[k] / ID_count_max
+                B  = np.random.binomial(1, p)  # entire grid
+                ## B  = B.astype( 'uint8' )  ######
+                w3 = (B == 1)   # (boolean array)
+                n3 = w3.sum()
+
+                self.S[ w3 ] = 1
+                self.IDs[ w3 ]  = ID_vals[k]
+                self.n_conflict_cells += n3
+
+            #--------------------------------------
+            # Alternate method that uses U and C2
+            #--------------------------------------
+            # not implemented
+                                  
+        #-----------------------------------------------------        
+        # Compute probability that conflict in each cell with
+        # conflict will spread to any other grid cell
+        #-------------------------------------------------------
+        # C2 measures how well-connected each grid cell is,
+        # (via phone or internet access -- nonlocal) to other
+        # grid cells (i.e. "the outside world"). This is
+        # assumed proportional to the likelihood that conflict
+        # will spread to them from distant grid cells.
+        #-------------------------------------------------------      
+        # w2 = np.invert(w1)   # (no-conflict cell locations)
+        # C2_w2_max = np.max( self.C2[w2] ) 
+        # p = np.zeros(self.C2.shape, dtype='float32')
+        # p[ w2 ] = self.c_spread2 * self.C2[w2] / C2_w2_max
+
+        #---------------------------------------------
+        # Use Bernoulli r.v.s to determine spreading
+        #---------------------------------------------
+#         n_start = self.n_conflict_cells
+#         
+#         if (USE_LOOP):        
+#             for k in range(n1):
+#                 w2 = (self.S == 0)   # (no-conflict cell locations)
+#                 C2_w2_max = np.max( self.C2[w2] ) 
+#                 p = np.zeros(self.C2.shape, dtype='float32')
+#                 if (C2_w2_max > 0):
+#                     p[ w2 ] = self.c_spread2 * self.C2[w2] / C2_w2_max
+# 
+#                 #--------------------------------------
+#                 # Alternate method that uses U and C2
+#                 #--------------------------------------
+#                 # not implemented
+#                 
+#                 # Generate grid of Bernoulli random variables
+#                 B  = np.random.binomial(1, p)  # entire grid
+#                 ## B  = B.astype( 'uint8' )  ######
+#                 w3 = (B == 1)   # (boolean array)
+#                 n3 = w3.sum()
+# 
+#                 self.S[ w3 ] = 1
+#                 self.IDs[ w3 ]  = ID_vals[k]
+#                 self.n_conflict_cells += n3
+#         else:
+#             pass
+            #-------------------------------------
+            # Spread conflict without a for loop
+            # Much faster, and results look similar
+            # See notes below re: overcounting.
+            #-------------------------------------
+#             B  = np.random.binomial(1, pn)  # (8 r.v.s)
+#             ## B  = B.astype( 'uint8' )  ######
+#             w2 = np.logical_and( (self.S[rn, cn] == 0), (B == 1) )
+#             n2 = w2.sum()
+#             #-----------------------------------------
+#             # Spread conflict to some neighbor cells
+#             #-----------------------------------------
+#             # w2 is boolean array, but this is okay
+#             #-----------------------------------------
+#             self.S[ rn[w2], cn[w2] ]   = 1
+#             self.IDs[ rn[w2], cn[w2] ] = ID_vals[w2]
+#             #--------------------------------------------
+#             # Without the for loop, several cells can 
+#             # spread conflict to the same cell and this
+#             # next line results in over-counting:
+#             #    self.n_conflict_cells += n2
+#             #--------------------------------------------
+#             w_new = (self.S == 1)
+#             n_new = (w_new.sum() - n1)
+#             self.n_conflict_cells += n_new
+                     
+        if (self.REPORT):
+            n_spread = (self.n_conflict_cells - n_start)
+            print('Number of spread conflicts =', n_spread)
+            print()
+        
+    #   spread_conflicts_nonlocal2()
     #---------------------------------------------------------------
     def finalize( self ):
 
@@ -1017,6 +1308,7 @@ class conflict():
             print('n_steps   =', self.n_steps)
             print('c_emerge  =', self.c_emerge, 'in (0,1)')
             print('c_spread  =', self.c_spread, 'in (0,1)')
+            print('c_spread2 =', self.c_spread2, 'in (0,1)')
             ## print('p_geom   =', self.p_geom)
             print('p_resolve =', self.p_resolve, 'in (0,1)')
             print('time_lag  =', self.time_lag)
