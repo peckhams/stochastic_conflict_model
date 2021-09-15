@@ -41,4 +41,5 @@ This is a spatial grid of values (2D array) that gives a measure of the "local c
 ### nonlocal connectivity grid
 This is a spatial grid of values (2D array) that gives a measure of the "nonlocal connectivty", or potential for conflict to spread to distant grid cells, in each grid cell.  It depends on indicators such as internet and cell phone access.  This grid is currently pre-computed for the user as a function of several indicators.  It is fixed for each model run for a given region.  Must be in GeoTIFF format and all grids must have same dimensions. If no grid is specified, a uniform (constant-valued grid) is used.
 
-![image info](./images/Horn_of_Africa_Local_and_nonlocal_spreading.png)
+<img src="./images/Horn_of_Africa_Local_and_nonlocal_spreading.png" alt="image" width="200"/>
+
