@@ -1,6 +1,8 @@
 Stochastic Conflict Model
 ========
 
+<img src="./images/Horn_of_Africa_Local_and_nonlocal_spreading.png" alt="image" width="400"/>
+
 This grid-based, stochastic model simulates the triggering of conflict in areas where "unrest" is high, and its subsequent spreading and/or resolution based on measures of local and nonlocal connectivity.  This model has been written as a Python package that can be installed in a conda environment. 
 
 There is also a Jupyter notebook (see notebook folder) which has a graphical user interface (GUI), with sliders and text boxes, for running the model.  Instructions for installing the package are included in the notebook.  Values from the GUI are written to the model's configuration file.  Model output can also be visualized within the notebook with special graphics routines that are included with the package.
@@ -37,9 +39,8 @@ A spatial grid of values (2D array) that gives a measure of the "unrest", or pot
 ### local connectivity grid
 This is a spatial grid of values (2D array) that gives a measure of the "local connectivty", or potential for conflict to spread, in each grid cell.  It depends on indicators such as accessibility, road density, etc..  This grid is currently pre-computed for the user as a function of several indicators.  It is fixed for each model run for a given region.  Must be in GeoTIFF format and all grids must have same dimensions.  If no grid is specified, a uniform (constant-valued grid) is used.
 
-
 ### nonlocal connectivity grid
 This is a spatial grid of values (2D array) that gives a measure of the "nonlocal connectivty", or potential for conflict to spread to distant grid cells, in each grid cell.  It depends on indicators such as internet and cell phone access.  This grid is currently pre-computed for the user as a function of several indicators.  It is fixed for each model run for a given region.  Must be in GeoTIFF format and all grids must have same dimensions. If no grid is specified, a uniform (constant-valued grid) is used.
 
-<img src="./images/Horn_of_Africa_Local_and_nonlocal_spreading.png" alt="image" width="200"/>
+
 
