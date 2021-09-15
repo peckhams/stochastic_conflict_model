@@ -20,10 +20,13 @@ This model is partially compliant with the Basic Model Interface (BMI).
 The main model parameters are as follows:
 
 ### conflict emergence factor
-This is a proportionality factor that is multiplied by the normalized unrest (U) to get the probability that conflict emerges in a given grid cell in the current timestep.  A real-valued number between 0 and 1.  Can be set with a slider in the GUI.
+This is a proportionality factor that is multiplied by the normalized unrest (U) to get the probability that conflict *emerges* in a given grid cell in the current timestep.  A real-valued number between 0 and 1.  Can be set with a slider in the GUI.
  
 ### conflict local spreading factor
-This is a proportionality factor that is multiplied by the normalized local connectivity (C1) to get the probability that conflict emerges in a given grid cell in the current timestep.  A real-valued number between 0 and 1.  Can be set with a slider in the GUI.
+This is a proportionality factor that is multiplied by the normalized local connectivity (C1) to get the probability that conflict *spreads* from a given grid cell to its nearest neighbors in the current timestep.  A real-valued number between 0 and 1.  Can be set with a slider in the GUI.
+
+### conflict nonlocal spreading factor
+This is a proportionality factor that is multiplied by the normalized nonlocal connectivity (C2) to get the probability that conflict *spreads* from a given grid cell to remote grid cells in the current timestep.  A real-valued number between 0 and 1.  Can be set with a slider in the GUI.
 
 ### conflict resolution probability
 The probability that the conflict in any grid cell will be resolved in the current timestep.  A real-valued number between 0 and 1.  Can be set with a slider in the GUI.
