@@ -53,11 +53,11 @@ class conflict_gui:
         #----------------------------------------------------------       
         # self.gui_width         = 680  # (orig)
         self.gui_width         = 600
-        self.left_label_width  = 150
+        self.left_label_width  = 160
         self.next_label_width  = 70
         self.all_label_width   = 170
         # self.full_box_width    = 540  # (orig)
-        self.full_box_width    = 550
+        self.full_box_width    = 560
         self.widget_width      = (self.full_box_width - self.left_label_width)
         # self.half_widget_width = (self.full_box_width - self.all_label_width)/2
         # self.half_widget_width = 183
@@ -68,7 +68,7 @@ class conflict_gui:
         self.button_width      = 70   # big enough for "Reset"
         #-----------------------------------------------------
         self.default_U_file    = 'input_files/Horn_of_Africa_GPW-v4_pop_count_2020_450sec.tif'
-        self.default_C1_file   = '(none, uniform)'
+        self.default_C1_file   = 'input_files/Horn_of_Africa_GPW-v4_pop_count_2020_450sec.tif'
         self.default_C2_file   = '(none, uniform)'
         self.default_gui_cfg_file = '~/Conflict/Input/gui_conflict.cfg'
         self.default_out_file  = '~/Conflict/Output/conflicts.rts'
@@ -217,7 +217,15 @@ class conflict_gui:
                                  readout=True, readout_format='.3f',
                                  style=left_style,
                                  layout=Layout(width=full_width_px))
-        o8 = widgets.FloatSlider(description='Spreading factor:', value=0.2,
+        o8a = widgets.FloatSlider(description='Local spreading factor:', value=0.2,
+                                 min=0.0, max=1.0, step=0.001,
+                                 disabled=False,
+                                 continuous_update=False,
+                                 orientation='horizontal',
+                                 readout=True, readout_format='.3f',
+                                 style=left_style,
+                                 layout=Layout(width=full_width_px))
+        o8b = widgets.FloatSlider(description='Nonlocal spreading factor:', value=0.0,
                                  min=0.0, max=1.0, step=0.001,
                                  disabled=False,
                                  continuous_update=False,
@@ -248,7 +256,7 @@ class conflict_gui:
         ## pad_box  = widgets.VBox([pd, pd])
         ## mid_box  = widgets.HBox([name_box, unit_box])
         ## mid_box  = widgets.HBox([name_box, pad_box, unit_box])
-        panel = widgets.VBox([o1, dims_box, o4, o5, o6, o7, o8, o9, stat_box])
+        panel = widgets.VBox([o1, dims_box, o4, o5, o6, o7, o8a, o8b, o9, stat_box])
  
         self.input_n_steps   = o1
         self.input_n_cols    = o2
@@ -257,7 +265,8 @@ class conflict_gui:
         self.input_C1_file   = o5
         self.input_C2_file   = o6
         self.input_c_emerge  = o7
-        self.input_c_spread  = o8
+        self.input_c_spread  = o8a
+        self.input_c_spread2 = o8b
         self.input_p_resolve = o9
         self.input_status    = o10
         self.input_panel     = panel
@@ -404,7 +413,8 @@ class conflict_gui:
             cfg_unit.write('C2_file   = ' + "'" + C2_file + "'\n") 
         #--------------------------------------------------------------------        
         cfg_unit.write('c_emerge  = ' + str(self.input_c_emerge.value) + '\n')
-        cfg_unit.write('c_spread  = ' + str(self.input_c_spread.value) + '\n')     
+        cfg_unit.write('c_spread  = ' + str(self.input_c_spread.value) + '\n') 
+        cfg_unit.write('c_spread2 = ' + str(self.input_c_spread2.value) + '\n')      
         cfg_unit.write('p_resolve = ' + str(self.input_p_resolve.value) + '\n')
         cfg_unit.write('spread_method = ' + str(1) + '\n')
         cfg_unit.write('time_lag  = ' + str(1) + '\n')
