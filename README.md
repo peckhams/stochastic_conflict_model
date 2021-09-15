@@ -1,7 +1,7 @@
 Stochastic Conflict Model
 ========
 
-<img src="./images/Horn_of_Africa_Local_and_nonlocal_spreading.png" alt="image" width="400"/>
+<img src="./images/Horn_of_Africa_Local_and_nonlocal_spreading.png" alt="image" width="350"/>
 
 This grid-based, stochastic model simulates the triggering of conflict in areas where "unrest" is high, and its subsequent spreading and/or resolution based on measures of local and nonlocal connectivity.  This model has been written as a Python package that can be installed in a conda environment. 
 
