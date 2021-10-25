@@ -151,9 +151,10 @@ def read_geotiff(in_file=None, REPORT=True,
     #------------------------------
     # Get min & max of input grid
     #------------------------------
-    in_grid = in_unit.ReadAsArray()
-    in_gmin = in_grid.min()
-    in_gmax = in_grid.max()
+    in_grid  = in_unit.ReadAsArray()
+    in_dtype = in_grid.dtype
+    in_gmin  = in_grid.min()
+    in_gmax  = in_grid.max()
      
     #----------------       
     # Close in_file
@@ -201,6 +202,7 @@ def read_geotiff(in_file=None, REPORT=True,
         print('   nrows  =', in_nrows )
         print('   xres   =', in_xres_sec, ' [arcsecs]' )
         print('   yres   =', in_yres_sec, ' [arcsecs]' )
+        print('   dtype  =', in_dtype )
         print('   bounds =', in_bounds )
         print('   gmin   =', in_gmin )
         print('   gmax   =', in_gmax ) 
@@ -278,9 +280,10 @@ def regrid_geotiff(in_file=None, out_file=None,
     #------------------------------
     # Get min & max of input grid
     #------------------------------
-    in_grid = in_unit.ReadAsArray()
-    in_gmin = in_grid.min()
-    in_gmax = in_grid.max()
+    in_grid  = in_unit.ReadAsArray()
+    in_dtype = in_grid.dtype
+    in_gmin  = in_grid.min()
+    in_gmax  = in_grid.max()
     
     #-------------------------------------------------------------
     # If a spatial resolution has not been specified for output,
@@ -337,9 +340,10 @@ def regrid_geotiff(in_file=None, out_file=None,
     #-------------------------------
     # Get min & max of output grid
     #-------------------------------
-    out_grid = out_unit.ReadAsArray()
-    out_gmin = out_grid.min()
-    out_gmax = out_grid.max()
+    out_grid  = out_unit.ReadAsArray()
+    out_dtype = out_grid.dtype
+    out_gmin  = out_grid.min()
+    out_gmax  = out_grid.max()
         
     #----------------------------------        
     # Close both in_file and out_file
@@ -358,6 +362,7 @@ def regrid_geotiff(in_file=None, out_file=None,
         print('   xres   =', in_xres_sec, ' [arcsecs]' )
         print('   yres   =', in_yres_sec, ' [arcsecs]' )
         print('   bounds =', in_bounds )
+        print('   dtype  =', in_dtype )
         print('   gmin   =', in_gmin )
         print('   gmax   =', in_gmax )
         print()
@@ -368,6 +373,7 @@ def regrid_geotiff(in_file=None, out_file=None,
         print('   xres   =', out_xres_sec, ' [arcsecs]' )
         print('   yres   =', out_yres_sec, ' [arcsecs]' ) 
         print('   bounds =', out_bounds )
+        print('   dtype  =', out_dtype )
         print('   gmin   =', out_gmin )
         print('   gmax   =', out_gmax )      
         print('Finished regridding.')

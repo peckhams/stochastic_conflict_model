@@ -1,12 +1,16 @@
 #
 #  Copyright (c) 2021, Scott D. Peckham
-#  May 2021.  Started on May 17 for Localized Conflict Modeling.
+#
+#  Sep 2021.  Wrote save_acled_data_to_grid().
+#             Used ideas from read_acled_data() and fixed bugs.
+#  May 2021.  Wrote read_acled_data().
+#             Started on May 17 for Localized Conflict Modeling.
 #             First, read GPW population count data as GeoTIFF.
 #             Write-up and theoretical results in late May.
 #-------------------------------------------------------------------
 #
-#  save_acled_data_to_grid()   # 2021-09-15
-#  read_acled_data()           # 2021-05 (original)
+#  save_acled_data_to_grid()      # 2021-09-15
+#  read_acled_data()              # 2021-05 (original, deleted)
 #
 #-------------------------------------------------------------------
 
@@ -16,14 +20,25 @@ import os, os.path
 import time
 import rti_files
 
-#-------------------------------------------------------------------
-def save_acled_data_to_grid( excel_file='acled.xlsx', data_dir=None,
-                     bounds=None, year_range=[1997,2019],
-                     dlat_arcsecs=450, dlon_arcsecs=450,
-                     # dlat_arcsecs=1800, dlon_arcsecs=1800,
-                     HORN_OF_AFRICA=True,
-                     rts_file='Horn_of_Africa_deaths_by_month.rts',
-                     rtg_file='Horn_of_Africa_deaths_in_month1.rtg'):
+#--------------------------------------------------------------
+# NOTE!  After sorting FATALITIES column in descending order,
+#        rows 1 to 74 in the ACLED data for different months
+#        in 1999 all have the same number of deaths, 1369,
+#        which is the max over all rows.  This number seems
+#        to have come from 100000/73 = 1369.863.  The number
+#        of fatalities in Ethiopia-Eritrea war = 100,000.
+
+#        Rows 81 to 198 all have exactly 1000 deaths.
+#        Rows 256-258 are identical except for dates
+#        (3 consecutive days) and each has 400 deaths.
+#        The cause of this overcounting is not clear. 
+#---------------------------------------------------------------
+def save_acled_data_to_grid( excel_file='acled.xlsx',
+                    data_dir=None, var_type='deaths',
+                    bounds=None, year_range=[1997,2019],
+                    dlat_arcsecs=450, dlon_arcsecs=450,
+                    HORN_OF_AFRICA=True,
+                    rts_file=None, rtg_file=None):
 
     #-----------------------------------------------------
     # Note:  To use this, need:
@@ -75,11 +90,25 @@ def save_acled_data_to_grid( excel_file='acled.xlsx', data_dir=None,
     #-------------------------------------------------------------       
     event_lats   = df['LATITUDE'].to_numpy()     # (float64)
     event_lons   = df['LONGITUDE'].to_numpy()    # (float64)
-    event_deaths = df['FATALITIES'].to_numpy()   # (int64)
     event_dates  = df['EVENT_DATE']              # (datetime64[ns])
     event_years  = df['YEAR'].to_numpy()         # (int64)
-    event_actor1 = df['ACTOR1']                  # (str)
-    event_actor2 = df['ACTOR2']                  # (str)
+    #------------------------------------------------------------- 
+    if (var_type == 'deaths'):
+        event_deaths = df['FATALITIES'].to_numpy()   # (int64)
+        if (rts_file is None):
+            rts_file='Horn_of_Africa_deaths_by_month.rts'
+        if (rtg_file is None):
+            rtg_file='Horn_of_Africa_deaths_in_month1.rtg'
+    #------------------------------------------------------------- 
+    if (var_type == 'all_conflicts'):
+        if (rts_file is None):
+            rts_file='Horn_of_Africa_conflicts_by_month.rts'
+        if (rtg_file is None):
+            rtg_file='Horn_of_Africa_conflicts_in_month1.rtg'
+    #-------------------------------------------------------------
+    # event_types  = df['EVENT_TYPE']
+    # event_actor1 = df['ACTOR1']       # (str)
+    # event_actor2 = df['ACTOR2']       # (str)
 
     #------------------------------------------------  
     # Create an array of month_nums from EVENT_DATE
@@ -156,18 +185,21 @@ def save_acled_data_to_grid( excel_file='acled.xlsx', data_dir=None,
             w1 = np.logical_and( IN_BOX, event_years==year )
             w2 = np.logical_and( w1, event_month_nums==month )
             #--------------------------------------------------
-            year_month_lons   = event_lons[w2]
-            year_month_lats   = event_lats[w2]
-            year_month_deaths = event_deaths[w2] 
-            n_conflicts       = year_month_lons.size  # (in this year-month)
-            
-            #------------------------------------------
-            # For testing: 73 events have deaths=1369
-            #------------------------------------------
-#             w3 = (year_month_deaths == 1369)
-#             n3 = w3.sum()
-#             if (n3 > 0):
-#                 print('1369 deaths: year=', year,', month=', month, ', events=', n3)
+            year_month_lons = event_lons[w2]
+            year_month_lats = event_lats[w2]
+            n_conflicts     = year_month_lons.size  # (in this year-month)
+            #----------------------------------------
+            if (var_type == 'deaths'):
+                year_month_data = event_deaths[w2]
+				#------------------------------------------
+				# For testing: 73 events have deaths=1369
+				#------------------------------------------
+# 				w3 = (year_month_data == 1369)
+# 				n3 = w3.sum()
+# 				if (n3 > 0):
+# 					print('1369 deaths: year=', year,', month=', month, ', events=', n3)
+            if (var_type == 'all_conflicts'):
+                year_month_data = np.ones( n_conflicts )
 
             #---------------------------------------------------- 
             # Get grid cell row,col for each row in spreadsheet
@@ -230,33 +262,40 @@ def save_acled_data_to_grid( excel_file='acled.xlsx', data_dir=None,
 #                     print('min_cell_row, max_cell_row =', min_cell_row, max_cell_row)
 
             #----------------------------------------------            
-            # If there are no deaths in this year-month,
+            # If (n_conflicts == 0) in this year-month,
             # we still want to write out a grid of zeros.
             # For loop will be skipped.
-            #----------------------------------------------         
-            death_grid  = np.zeros( (nlats, nlons), dtype='float32')
+            #-------------------------------------------------
+            # Multiple conflicts may have the same (row,col)
+            # so we need a for loop here.
+            #-------------------------------------------------
+            # year_month_data depends on "var_type" above
+            # (var_type == 'deaths') =>  val = n_deaths
+            # (var_type == 'all_conflicts') => val = 1
+            #-------------------------------------------------                    
+            data_grid  = np.zeros( (nlats, nlons), dtype='float32')
             for k in range(n_conflicts):
                 row = cell_rows[k]
                 col = cell_cols[k]
-                n_deaths = year_month_deaths[k]
-                ### print('n_deaths =', n_deaths)
-                death_grid[ row, col ] += n_deaths
-#               # For testing
+                val = year_month_data[k]
+                data_grid[ row, col ] += val
+                #-------------------------------------------
+                # For testing with (var_type == 'deaths')
 #                 if (year == 1999) and (month == 2):
 #                     print('row, col =', row, col)
-#                     print('death_grid[row, col] =', death_grid[row,col])
-#                     print()
-
+#                     print('data_grid[row, col] =', data_grid[row,col])
+#                     print()              
+                                
             #-------------------------------            
             # Write death_grid to RTS file
             #-------------------------------
-            death_grid.tofile( rts_unit )
+            data_grid.tofile( rts_unit )
 
             #----------------------------------        
             # Make an RTG file for first year
             #----------------------------------
             if (year == minyear) and (month == 1):
-                death_grid.tofile( rtg_unit)
+                data_grid.tofile( rtg_unit)
                 rtg_unit.close()
             
     #---------------------       
@@ -309,156 +348,10 @@ def save_acled_data_to_grid( excel_file='acled.xlsx', data_dir=None,
         
 #   save_acled_data_to_grid()
 #-------------------------------------------------------------------
-#   ORIGINAL CODE:  OBSOLETE SOON.
+# See: https://stackoverflow.com/questions/51573164/
+#      dividing-geographical-region-into-equal-sized-
+#      grid-and-retrieving-indexing-posit
 #-------------------------------------------------------------------
-def read_acled_data( excel_file='acled.xlsx', data_dir=None,
-                     bounds=None, year_range=[1997,2019],
-                     dlat=0.5, dlon=0.5, 
-                     rts_file='Horn_of_Africa_deaths_by_year.rts',
-                     rtg_file='Horn_of_Africa_deaths_in_year1.rtg'):
 
-    #-----------------------------------------------------
-    # Note:  To use this, need:
-    #        conda install pandas
-    #        conda install openpyxl (for excel files)
-    #        DON'T: conda install xlrd  (deprecated)
-    #-----------------------------------------------------
-    # Note:  Add ability to restrict to bounding box.
-    #        ACLED data is for all of Africa, from 1997.
-    #-----------------------------------------------------
-    # Note:  bounds = [ minlon, minlat, maxlon, maxlat ]
-    #        For the Horn of Africa:
-    #        bounds = [ 25.0, -5.0, 55.0, 25.0]
-    #        if (dlat == 1) and (dlon == 1), then
-    #            ncols = 30, nrows = 30
-    #-----------------------------------------------------
-    if (data_dir is None):
-        home_dir = os.path.expanduser('~') + os.sep
-        data_dir = home_dir + 'Data/ACLED_Data/'
-    excel_filepath = data_dir + excel_file
-
-    df = pd.read_excel( excel_filepath )
-
-    # print(df.columns)  # (print the column header labels)
-    # print(df.dtypes)   # (print data type of each column)
-    
-    lats   = df['LATITUDE'].to_numpy()       # (float64)
-    lons   = df['LONGITUDE'].to_numpy()      # (float64)
-    deaths = df['FATALITIES'].to_numpy()   # (int64)
-    dates  = df['EVENT_DATE']
-    years  = df['YEAR'].to_numpy()  # (int64)
-  
-    #-----------------------------------------------------
-    # Note:  bounds = [ minlon, minlat, maxlon, maxlat ]
-    #-----------------------------------------------------  
-    if (bounds is None):
-        minlon = np.floor( lons.min() )
-        maxlon = np.ceil( lons.max() )
-        minlat = np.floor( lats.min() )
-        maxlat = np.ceil( lats.max() )
-        IN_BOX = np.ones( lats.size, dtype='bool_' )
-    else:
-        minlon  = bounds[0]
-        minlat  = bounds[1]
-        maxlon  = bounds[2]
-        maxlat  = bounds[3]
-        w1 = np.logical_and( lats >= minlat, lats <= maxlat )
-        w2 = np.logical_and( lons >= minlon, lons <= maxlon )
-        IN_BOX = np.logical_and( w1, w2 )
-
-    nlons = np.int32( (maxlon - minlon) / dlon )
-    nlats = np.int32( (maxlat - minlat) / dlat )
-    cols  = np.linspace(minlon, maxlon, nlons)
-    rows  = np.linspace(minlat, maxlat, nlats)
-
-    #---------------------------------------------------   
-    # Create an RTS file, where each grid in the stack
-    # has the number of deaths per cell for one year
-    #---------------------------------------------------
-    rts_unit = open(rts_file, 'wb')
-    rtg_unit = open(rtg_file, 'wb')
-    minyear = year_range[0]
-    maxyear = year_range[1]
-    n_years = (maxyear - minyear) + 1
-    year_nums = np.arange(n_years) + minyear
-    for year in year_nums:
-        print('Working on year:', year)
-        w3 = np.logical_and( IN_BOX, years==year )
-        year_lons   = lons[w3]
-        year_lats   = lats[w3]
-        year_deaths = deaths[w3] 
-        # year_dates = dates[w3]
-        #------------------------------------------------- 
-        # Get grid cell row,col for a row in spreadsheet
-        #-------------------------------------------------        
-        cell_cols   = np.searchsorted( cols, year_lons )
-        cell_rows   = np.searchsorted( rows, year_lats )
-        death_grid  = np.zeros( (nlats, nlons), dtype='float32')
-        n_conflicts = year_lons.size
-        for k in range(n_conflicts):
-            death_grid[ cell_rows[k], cell_cols[k]] += year_deaths[k]
-        # write death_grid to RTS file
-        death_grid.tofile( rts_unit )
-
-        #----------------------------------        
-        # Make an RTG file for first year
-        #----------------------------------
-        if (year == minyear):
-            death_grid.tofile( rtg_unit)
-            rtg_unit.close()
-            
-    #---------------------       
-    # Close the RTS file
-    #---------------------
-    rts_unit.close()
-    print('Finished writing RTS file:')
-    print(rts_file)
-    return
-    #----------------------------------------------------
-    # Remaining code is for TOTAL deaths in year_range.
-    #----------------------------------------------------
-   
-
-    #---------------------------------------------------- 
-    # Get grid cell row,col for each row in spreadsheet
-    #----------------------------------------------------
-    # https://stackoverflow.com/questions/51573164/
-    # dividing-geographical-region-into-equal-sized-
-    # grid-and-retrieving-indexing-posit
-    #----------------------------------------------------
-    cell_cols = np.searchsorted( cols, lons )
-    cell_rows = np.searchsorted( rows, lats )
-
-    #--------------------------------------------------    
-    # Create a geospatial grid of all conflict deaths
-    #---------------------------------------------------
-    # This for loop is slow, but we need to accumulate
-    # the death count from different events.
-    # Need a numpy trick to avoid the for loop.
-    #-------------------------------------------------------
-    # NOTE!  Rows 1 to 74 in the ACLED data for different
-    #        months in 1999 all have the same number of
-    #        deaths, 1369, which is the max over all rows.
-    #        Rows 81 to 198 all have exactly 1000 deaths.
-    #        Rows 256-258 are identical except for dates
-    #        (3 consecutive days) and each has 400 deaths.
-    #        The cause of this overcounting is not clear.
-    #-------------------------------------------------------   
-    n_conflicts = lons.size
-    for k in range(n_conflicts):
-        death_grid[ cell_rows[k], cell_cols[k]] += deaths[k]
-    return death_grid
-
-    #--------------------------------------------------    
-    # Create a geospatial grid of all conflict deaths
-    # that occurred in a given year
-    #--------------------------------------------------
-#     death_grid  = np.zeros( (nlats, nlons), dtype='float64')
-#     n_conflicts = lons.size
-#     for k in range(n_conflicts):
-#         death_grid[ cell_rows[k], cell_cols[k]] += deaths[k]
-            
-#   read_acled_data()
-#-------------------------------------------------------------------
 
 

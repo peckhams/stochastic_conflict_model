@@ -1,8 +1,14 @@
 #   
-#  Copyright (c) 2021, Scott D. Peckham
+#  Copyright (c) 2020, Scott D. Peckham
 #
 #  Note: This file contains a set of functions for visualizing the
-#        contents of Conflict Model output files.
+#        contents of output files in netCDF format
+#        (e.g. TopoFlow or Stochastic Conflict Model)
+#
+#  May 2020.  Moved all routines from Jupyter notebook called
+#             TopoFlow_Visualization.ipynb to here.
+#             Tested all of them in a new Jupyter notebook called
+#             TopoFlow_Visualization2.ipynb.
 #
 #--------------------------------------------------------------------
 #
@@ -18,6 +24,7 @@
 #  stretch_grid()
 #
 #  Define functions to show grids as color images:
+#  read_grid_from_nc_file()
 #  read_and_show_rtg()
 #  show_grid_as_image()
 #  save_grid_stack_as_images()
@@ -41,6 +48,7 @@ from matplotlib import cm
 from matplotlib.colors import ListedColormap
 import imageio
 
+from conflict.utils import ncgs_files
 from conflict.utils import rtg_files
 from conflict.utils import rts_files
 
@@ -150,6 +158,76 @@ def stretch_grid( grid, stretch, a=1, b=2, p=0.5 ):
 #   stretch_grid()
 #--------------------------------------------------------------------
 #--------------------------------------------------------------------
+def read_grid_from_nc_file( nc_file, time_index=1, REPORT=True ):
+
+    # Typical 2D nc files
+    # nc_file = case_prefix + '_2D-Q.nc'
+    # nc_file = case_prefix + '_2D-d-flood.nc'
+
+    ## if ('_2D' not in nc_file):
+    if ('2D' not in nc_file):
+        print('ERROR: This function is only for "2D" netCDF files.')
+        print('       Filename must contain "2D" for grid stacks.') 
+        return
+            
+    ncgs = ncgs_files.ncgs_file()
+    ncgs.open_file( nc_file )
+    var_name_list = ncgs.get_var_names()
+    if (REPORT):
+        print('var_names in netCDF file =' )
+        print( var_name_list )
+
+    #----------------------------         
+    # Determine valid var_index
+    #-----------------------------------------
+    # Old: 0=time, 1=X, 2=Y, 3=V
+    # New: 0=time, 1=datetime, 2=X, 3=Y, 4=V
+    #-----------------------------------------
+    var_index = 1
+    other_vars = ['time','datetime','X','Y','Z']
+    while (True):
+        var_name = var_name_list[ var_index ]
+        if (var_name not in other_vars):
+            break
+        var_index += 1    
+    ### var_index = 3   # 0=time, 1=X, 2=Y, 3=V  ###############
+    ### var_name  = var_name_list[ var_index ]
+    long_name = ncgs.get_var_long_name( var_name )
+    var_units = ncgs.get_var_units( var_name )
+    n_grids   = ncgs.ncgs_unit.variables[ var_name ].n_grids
+
+    if (REPORT):
+        print('long_name =', long_name)
+        print('var_name  =', var_name)
+        print('var_units =', var_units)
+        print('n_grids   =', n_grids)
+
+    #--------------------------------------------
+    # Use these to set "extent" in plt.imshow()
+    #--------------------------------------------
+    minlon = ncgs.ncgs_unit.variables['X'].geospatial_lon_min
+    maxlon = ncgs.ncgs_unit.variables['X'].geospatial_lon_max
+    minlat = ncgs.ncgs_unit.variables['Y'].geospatial_lat_min
+    maxlat = ncgs.ncgs_unit.variables['Y'].geospatial_lat_max
+    extent = [minlon, maxlon, minlat, maxlat]
+    
+    #----------------------------------------------
+    # Read grid from nc_file for given time_index
+    #----------------------------------------------
+    grid = ncgs.get_grid( var_name, time_index )
+    
+    if (REPORT):
+        print( 'extent = ')
+        print( extent )
+        print( 'grid shape =', grid.shape )
+        print( 'min(grid)  =', grid.min() )
+        print( 'max(grid)  =', grid.max() )
+
+    ncgs.close_file()
+    return (grid, long_name, extent)
+    
+#   read_grid_from_nc_file()
+#--------------------------------------------------------------------
 def read_and_show_rtg( rtg_filename, long_name, VERBOSE=True,
                        cmap='jet', BLACK_ZERO=False,
                        stretch='hist_equal',
@@ -237,7 +315,6 @@ def show_grid_as_image( grid, long_name, extent=None,
         n_colors = 256
         color_map  = cm.get_cmap( cmap, n_colors )
         new_colors = color_map( np.linspace(0, 1, n_colors) )
-        land_green = np.array([198, 229, 188, 256]) / 256.0
         black = np.array([0.0, 0.0, 0.0, 1.0])
         new_colors[0,:] = black
         new_cmap = ListedColormap( new_colors )
@@ -311,8 +388,10 @@ def save_grid_stack_as_images( nc_file, png_dir, extent=None,
     # nc_file = case_prefix + '_2D-Q.nc'
     # nc_file = case_prefix + '_2D-d-flood.nc'
 
-    if ('_2D' not in nc_file):
-        print('ERROR: This function is only for TopoFlow "2D" files.') 
+    ## if ('_2D' not in nc_file):
+    if ('2D' not in nc_file):
+        print('ERROR: This function is only for "2D" netCDF files.')
+        print('       Filename must contain "2D" for grid stacks.') 
         return
 
     ncgs = ncgs_files.ncgs_file()        
@@ -445,6 +524,7 @@ def save_rts_as_images( rts_file, png_dir, extent=None,
 
 #   save_rts_as_images()
 #--------------------------------------------------------------------
+#--------------------------------------------------------------------
 def create_movie_from_images( mp4_file, png_dir, fps=10, REPORT=True):
 
     #----------------------------------------
@@ -532,7 +612,8 @@ def plot_data( x, y, y2=None, xmin=None, xmax=None, ymin=None, ymax=None,
     plt.show()
 
 #   plot_data()
-#--------------------------------------------------------------------
+#----------------------------------------------------------------------------   
+
 
 
    
