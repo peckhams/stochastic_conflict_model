@@ -1,8 +1,8 @@
 
 #  Copyright (c) 2021, Scott D. Peckham
 #
-#  Sept 2021. create_rti_file().  Convert RTS to netCDF.
-#  Aug  2021. 
+#  Sept 2021. create_rti_file().  Write output to netCDF.
+#  Aug  2021. Testing and algorithm improvements.
 #  July 2021. Jupyter notebook with ipywidgets GUI and ability
 #             to visualize model output.
 #  June 2021. Further development and testing.
@@ -19,6 +19,7 @@
 #      initialize()
 #      read_config_file()
 #      create_rti_file()
+#      get_time_info()
 #      initialize_U()
 #      initialize_C1()
 #      initialize_C2()
@@ -50,6 +51,8 @@ import time
 import os, os.path
 from conflict.utils import geotiff as geo
 from conflict.utils import rti_files
+from conflict.utils import ncgs_files
+from conflict.utils import time_utils as tu
 
 # from conflict.utils import acled as ac
 
@@ -128,9 +131,9 @@ class conflict():
             self.cfg_file = cfg_file
             self.read_config_file()
         else:
-            self.n_steps  = 100       
-            self.n_cols   = 240
-            self.n_rows   = 240       
+            self.n_steps    = 100       
+            self.n_cols     = 240
+            self.n_rows     = 240      
             #----------------------------------------------
             self.U_file   = ''     # (To use uniform U)            
             self.C1_file  = ''
@@ -165,15 +168,19 @@ class conflict():
         ### self.start_ID    = 1
         self.start_index = 0
 
-        #----------------------------------
+        #-----------------------------------
+        # If these aren't set in CFG file,
+        # then use Horn of Africa (georef)
         # Georeferencing:  Horn of Africa
-        #--------------------------------------
-        # Move some of this into the CFG file
-        #--------------------------------------
-        self.min_lat = -5.0
-        self.max_lat = 25.0
-        self.min_lon = 25.0
-        self.max_lon = 55.0
+        #-----------------------------------
+        if not(hasattr(self, 'min_lat')):
+            self.min_lat = -5.0
+        if not(hasattr(self, 'max_lat')):
+            self.max_lat = 25.0
+        if not(hasattr(self, 'min_lon')):
+            self.min_lon = 25.0
+        if not(hasattr(self, 'max_lon')):
+            self.max_lon = 55.0
         lon_range_deg = (self.max_lon - self.min_lon)
         lat_range_deg = (self.max_lat - self.min_lat)
         #-----------------------------------------------
@@ -184,17 +191,77 @@ class conflict():
         self.yres_arcsecs = lat_range_deg * 3600 / self.n_rows
         self.create_rti_file()
 
+        #-------------------------------
+        # Read grid_info from RTI file
+        # Need for netCDF metadata.
+        #-------------------------------
+        rti_file  = rti_files.get_rti_file_name( self.IDs_file )
+        grid_info = rti_files.read_info( rti_file )
+
+        #----------------------------
+        # Create time_info object
+        # Need for netCDF metadata.
+        #----------------------------
+        if not(hasattr(self, 'start_date')):
+            self.start_date = '2021-01-01'
+        if not(hasattr(self, 'time_units')):
+            self.time_units = 'days'
+        if not(hasattr(self, 'end_date')):
+            #---------------------------------------
+            # Compute end_datetime from other info
+            #---------------------------------------
+            start_datetime = self.start_date + ' 00:00:00'
+            end_datetime_obj = tu.get_end_datetime( start_datetime,
+                                   self.n_steps, self.time_units)
+            end_datetime = str( end_datetime_obj )
+            self.end_date = end_datetime[0:10]
+        time_info = self.get_time_info()
+            
         #----------------------------
         # Change to input directory
         #----------------------------
         ## os.chdir( self.in_dir )
      
-        #-----------------------------
-        # Open output files to write
-        #-----------------------------
+        #------------------------------------------
+        # Open output files to write (RTS format)
+        #------------------------------------------
         self.out_unit = open( self.out_file, 'wb')
         self.IDs_unit = open( self.IDs_file, 'wb')
 
+        #--------------------------------------
+        # Open output files to write (netCDF)
+        #--------------------------------------
+        S_nc_file   = self.out_file[0:-4] + '_2D.nc'
+        IDs_nc_file = self.IDs_file[0:-4] + '_2D.nc'
+        #------------------------------------------
+        # Note:  Treating "presence" (boolean) as
+        #        a quantity here (vs. "absence").
+        #------------------------------------------
+        # Note:  Recall incidence vs. prevalence.
+        #------------------------------------------
+        # Need to specify comment here, as shown.
+        #------------------------------------------        
+        self.ncgs_S   = ncgs_files.ncgs_file()
+        self.ncgs_IDs = ncgs_files.ncgs_file()
+        self.ncgs_S.open_new_file( S_nc_file,
+                      grid_info=grid_info,
+                      time_info=time_info,
+                      var_name='conflict_S',
+                      long_name='conflict_event__presence',
+                      units_name='none',
+                      dtype='float32',
+                      ### dtype='float64'
+                      time_units=self.time_units, time_res='1')
+        self.ncgs_IDs.open_new_file( IDs_nc_file,
+                      grid_info=grid_info,
+                      time_info=time_info,
+                      var_name='conflict_IDs',
+                      long_name='conflict_event__identification_number',
+                      #####################################################
+                      units_name='none',
+                      dtype='int32',   # (long integer; see max_ID)
+                      time_units=self.time_units, time_res='1') 
+                              
         #--------------------------------------       
         # Make grids with col and row numbers
         #--------------------------------------
@@ -236,7 +303,7 @@ class conflict():
         w1 = (self.U == 0)   # boolean array
         self.IDs[ w1 ] = max_ID
         # self.IDs[ w1 ] = self.ran_IDs[0]
-
+    
         self.start_time  = time.time()
         
     #   initialize()
@@ -312,6 +379,34 @@ class conflict():
         rti_files.write_info(rts_file, info)
  
     #   create_rti_file()
+    #---------------------------------------------------------------
+    def get_time_info( self ):
+        
+        #---------------------------------
+        # Construct a "time_info" object
+        #--------------------------------------------------        
+        # Note: self.start_time is used to track run_time
+        #--------------------------------------------------
+        zero_time = '00:00:00'
+        dur_units = self.time_units
+        duration  = tu.get_duration(start_date=self.start_date,
+                        start_time=None, end_date=self.end_date,
+                        end_time=None, dur_units=dur_units)
+        class time_info_class:
+            pass
+        time_info = time_info_class()
+        time_info.start_date     = self.start_date
+        time_info.start_time     = zero_time
+        time_info.start_datetime = self.start_date + ' ' + zero_time 
+        time_info.end_date       = self.end_date
+        time_info.end_time       = zero_time
+        time_info.end_datetime   = self.end_date + ' ' + zero_time 
+        time_info.duration       = duration
+        time_info.duration_units = dur_units
+
+        return time_info
+
+    #   get_time_info()
     #---------------------------------------------------------------
     def initialize_U( self ):
 
@@ -521,11 +616,27 @@ class conflict():
             #---------------------------------
             S2 = np.float32(self.S)
             S2.tofile( self.out_unit )
+
+            #--------------------------------            
+            # Add grid to netCDF grid stack
+            # time_units already stored
+            #--------------------------------
+            self.ncgs_S.add_grid(S2, 'conflict_S',
+                 time=self.time_index )
+                 ## time_units=self.time_units)
    
         SAVE_IDs = True
         if (SAVE_IDs):
             self.IDs.tofile( self.IDs_unit )
-   
+
+            #--------------------------------            
+            # Add grid to netCDF grid stack
+            # time_units already stored
+            #-------------------------------- 
+            self.ncgs_IDs.add_grid(self.IDs, 'conflict_IDs',
+                 time=self.time_index)
+                 ## time_units=self.time_units)
+                   
     #   update_S()
     #---------------------------------------------------------------
     def update_S1( self ):
@@ -1294,12 +1405,18 @@ class conflict():
     #---------------------------------------------------------------
     def finalize( self ):
 
-        #-------------------------    
-        # Close the output files
-        #-------------------------
+        #--------------------------------------    
+        # Close the output files (RTS format)
+        #--------------------------------------
         self.out_unit.close()
         self.IDs_unit.close()
-        
+
+        #-----------------------------------------    
+        # Close the output files (netCDF format)
+        #-----------------------------------------
+        self.ncgs_S.close()
+        self.ncgs_IDs.close()
+      
         if (self.REPORT):
             print()
             run_time = (time.time() - self.start_time)
