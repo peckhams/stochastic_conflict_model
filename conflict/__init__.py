@@ -1,7 +1,7 @@
 
 SILENT = False
 if not(SILENT):
-    print('Importing Conflict 0.5 package modules:')
+    print('Importing Stochastic Conflict Model package modules:')
     print('   conflict.utils')
     print(' ')
 
