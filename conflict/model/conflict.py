@@ -1,6 +1,7 @@
 
 #  Copyright (c) 2021, Scott D. Peckham
 #
+#  Oct  2021. NetCDF output files and movies.
 #  Sept 2021. create_rti_file().  Write output to netCDF.
 #  Aug  2021. Testing and algorithm improvements.
 #  July 2021. Jupyter notebook with ipywidgets GUI and ability
@@ -51,8 +52,10 @@ import time
 import os, os.path
 from conflict.utils import geotiff as geo
 from conflict.utils import rti_files
+from conflict.utils import rts_files
 from conflict.utils import ncgs_files
 from conflict.utils import time_utils as tu
+from conflict.utils import visualize as vis
 
 # from conflict.utils import acled as ac
 
@@ -139,9 +142,8 @@ class conflict():
             self.C1_file  = ''
             self.C2_file  = ''
             #-----------------------------------------------------                    
-            # self.in_dir   = home_dir + 'Conflict/Data/GPW-v4/'
-            self.in_dir   = home_dir + 'Conflict/Input/'
-            self.out_dir  = home_dir + 'Conflict/Output/' 
+            self.in_dir   = home_dir + 'stochastic_conflict_model/input_files/'
+            self.out_dir  = home_dir + 'output/' 
             cfg_file      = self.in_dir  + 'conflict.cfg'
             self.out_file = self.out_dir + 'conflicts.rts'
             self.IDs_file = self.out_dir + 'conflict_IDs.rts'
@@ -167,6 +169,21 @@ class conflict():
         ## self.start_time  = time.time()
         ### self.start_ID    = 1
         self.start_index = 0
+
+        #-----------------------------------
+        # If these aren't set in CFG file,
+        # then set them to defaults
+        #-----------------------------------
+        if not(hasattr(self, 'c_spread2')):
+            self.c_spread2 = 0.0
+        if not(hasattr(self, 'CREATE_INDICATORS')):                
+            self.CREATE_INDICATORS = 0   # False
+        if not(hasattr(self, 'CREATE_VIZ_FILES')):                
+            self.CREATE_VIZ_FILES = 0
+        if not(hasattr(self, 'opacity')):
+            self.opacity = 1.0
+        if not(hasattr(self, 'OVERWRITE_OK')):
+            self.OVERWRITE_OK = 0
 
         #-----------------------------------
         # If these aren't set in CFG file,
@@ -225,14 +242,27 @@ class conflict():
         #------------------------------------------
         # Open output files to write (RTS format)
         #------------------------------------------
-        self.out_unit = open( self.out_file, 'wb')
-        self.IDs_unit = open( self.IDs_file, 'wb')
-
+        # self.out_unit = open( self.out_file, 'wb')
+        # self.IDs_unit = open( self.IDs_file, 'wb')
+        #----------------------------------------
+        # Use RTS class methods in rts_files.py
+        #----------------------------------------
+        self.rts_S   = rts_files.rts_file()
+        self.rts_IDs = rts_files.rts_file()
+        self.rts_S.open_new_file( self.out_file, info=grid_info,
+             dtype='float32',
+             OVERWRITE_OK=self.OVERWRITE_OK, MAKE_RTI=True)
+        self.rts_IDs.open_new_file( self.IDs_file, info=grid_info,
+             dtype='int32',
+             OVERWRITE_OK=self.OVERWRITE_OK, MAKE_RTI=True)
+                
         #--------------------------------------
         # Open output files to write (netCDF)
         #--------------------------------------
-        S_nc_file   = self.out_file[0:-4] + '_2D.nc'
-        IDs_nc_file = self.IDs_file[0:-4] + '_2D.nc'
+        # S_nc_file   = self.out_file[0:-4] + '_2D.nc'
+        # IDs_nc_file = self.IDs_file[0:-4] + '_2D.nc'
+        S_nc_file   = self.out_file.replace('.rts', '_2D.nc')
+        IDs_nc_file = self.IDs_file.replace('.rts', '_2D.nc')        
         #------------------------------------------
         # Note:  Treating "presence" (boolean) as
         #        a quantity here (vs. "absence").
@@ -251,7 +281,8 @@ class conflict():
                       units_name='none',
                       dtype='float32',
                       ### dtype='float64'
-                      time_units=self.time_units, time_res='1')
+                      OVERWRITE_OK=self.OVERWRITE_OK,
+                      time_units=self.time_units, time_res='1')  #####
         self.ncgs_IDs.open_new_file( IDs_nc_file,
                       grid_info=grid_info,
                       time_info=time_info,
@@ -260,6 +291,7 @@ class conflict():
                       #####################################################
                       units_name='none',
                       dtype='int32',   # (long integer; see max_ID)
+                      OVERWRITE_OK=self.OVERWRITE_OK,
                       time_units=self.time_units, time_res='1') 
                               
         #--------------------------------------       
@@ -281,17 +313,19 @@ class conflict():
         # Initialize durations to zero also.
         # IDs will contain a unique ID for each conflict.
         # Using 'float32' for IDs now for viewing the RTS.
+        ##############################
         #------------------------------------------------------
         self.S    = np.zeros( self.grid_shape, dtype='uint8' )
         self.durs = np.zeros( self.grid_shape, dtype='uint32')
-        self.IDs  = np.zeros( self.grid_shape, dtype='float32')
-        
+        self.IDs  = np.zeros( self.grid_shape, dtype='int32')
+        ## self.IDs  = np.zeros( self.grid_shape, dtype='float32')
+                
         #----------------------------------------------------------
         # Create a set of random integer IDs, without replacement
         # so when we colorize, it will look better.
         # (I think this works as an iterator.)
         #----------------------------------------------------------
-        max_ID = 10000000
+        max_ID = 10000000  # 10 million
         self.ran_IDs = rn.choice( max_ID, max_ID, replace=False)
         # This next method used built-in random & and problems.
         ### self.ran_IDs = rn.sample( range(1000000), 500000)
@@ -332,7 +366,9 @@ class conflict():
                 # Type can be string, float or int
                 #-----------------------------------
                 if (value[0] in ["'", '"']):
-                    value = str(value[1:-1])  # strip quotes
+                    value = str(value[1:-1]) # strip quotes
+                    # strip leading/trailing spaces inside quotes
+                    value = value.strip()
                     value = os.path.expanduser( value )
                 else:
                     if ('.' in value):
@@ -446,6 +482,11 @@ class conflict():
             # Use a grid of ones
             #---------------------
             self.C1 = np.ones( self.grid_shape, dtype='float32' )
+            #----------------------------------------------
+            # Disallow spreading where U = 0 (e.g. ocean)
+            #----------------------------------------------
+            w1 = (self.U <= 0)
+            self.C1[ w1 ] = 0.0
 
         #---------------------------------------------
         # Disallow conflict spreading on the 4 edges
@@ -469,7 +510,12 @@ class conflict():
             # Use a grid of ones
             #---------------------
             self.C2 = np.ones( self.grid_shape, dtype='float32' )
-
+            #----------------------------------------------
+            # Disallow spreading where U = 0 (e.g. ocean)
+            #----------------------------------------------
+            w1 = (self.U <= 0)
+            self.C2[ w1 ] = 0.0
+            
         #---------------------------------------------
         # Disallow conflict spreading on the 4 edges
         #---------------------------------------------
@@ -520,8 +566,12 @@ class conflict():
         #        In order for p to be a probability, in (0,1],
         #        we need 0 < c_emerge <= 1.
         #----------------------------------------------------------
-        self.p_emerge = (self.c_emerge / self.U.max()) * self.U
-        
+        U_max = self.U.max()
+        if (U_max > 0):
+            self.p_emerge = (self.c_emerge / U_max) * self.U
+        else:
+            self.p_emerge = self.U
+
     #   update_p()
     #---------------------------------------------------------------
     def update_S( self ):
@@ -574,11 +624,14 @@ class conflict():
         self.IDs[ w2 ] = self.ran_IDs[i:i + n2]
         self.start_index += n2
         self.n_conflict_cells += n2
-        #---------------------------------------------
+        #---------------------------------
         self.S[ w3 ] = (1 - B2[ w3 ])
-        self.n_conflict_cells -= n3        
-         # Reset IDs to zero where resolved (i.e. B2 = 1).
-        self.IDs[ w3 ] = self.IDs[w3] * (1 - B2[w3])        
+        self.n_conflict_cells -= n3
+        #---------------------------------------- 
+        # Reset IDs to zero where resolved (w3)
+        #----------------------------------------        
+        self.IDs[ w3 ] = 0  # Same result?
+        ## self.IDs[ w3 ] = self.IDs[w3] * (1 - B2[w3])        
         #---------------------------------------------       
         if (self.REPORT):
             print('time_index =', self.time_index)
@@ -614,20 +667,23 @@ class conflict():
             # Write grid as binary to file
             # (could use .astype('float32'))
             #---------------------------------
-            S2 = np.float32(self.S)
-            S2.tofile( self.out_unit )
-
+            # S2 = np.float32(self.S)
+            # S2.tofile( self.out_unit )
+            #------------------------------
+            self.rts_S.add_grid( self.S )
+            
             #--------------------------------            
             # Add grid to netCDF grid stack
             # time_units already stored
             #--------------------------------
-            self.ncgs_S.add_grid(S2, 'conflict_S',
+            self.ncgs_S.add_grid(self.S, 'conflict_S',
                  time=self.time_index )
-                 ## time_units=self.time_units)
-   
+
         SAVE_IDs = True
         if (SAVE_IDs):
-            self.IDs.tofile( self.IDs_unit )
+            # self.IDs.tofile( self.IDs_unit )
+            #-----------------------------------
+            self.rts_IDs.add_grid( self.IDs )
 
             #--------------------------------            
             # Add grid to netCDF grid stack
@@ -635,7 +691,6 @@ class conflict():
             #-------------------------------- 
             self.ncgs_IDs.add_grid(self.IDs, 'conflict_IDs',
                  time=self.time_index)
-                 ## time_units=self.time_units)
                    
     #   update_S()
     #---------------------------------------------------------------
@@ -1408,9 +1463,12 @@ class conflict():
         #--------------------------------------    
         # Close the output files (RTS format)
         #--------------------------------------
-        self.out_unit.close()
-        self.IDs_unit.close()
-
+        # self.out_unit.close()
+        # self.IDs_unit.close()
+        #-------------------------
+        self.rts_S.close()
+        self.rts_IDs.close()
+    
         #-----------------------------------------    
         # Close the output files (netCDF format)
         #-----------------------------------------
@@ -1444,6 +1502,28 @@ class conflict():
             f_conflict_cells = (self.n_conflict_cells / n_cells)
             print('fraction_conflict_cells =', f_conflict_cells)
             print('Finished.')
+            print()
+
+        #--------------------------------------------------   
+        # Option to create a set of indicator grid stacks
+        # GPW-v4 population count is in "misc" directory.
+        #--------------------------------------------------
+        # if (self.CREATE_INDICATORS):
+        #    print('##### misc_directory =', self.misc_directory)
+        #    indicators.create_indicator_grid_stacks(
+        #               case_prefix=self.case_prefix,
+        #               output_dir=self.out_directory,
+        #               pop_dir=self.misc_directory,
+        #               compute_stat_grids=self.COMPUTE_STAT_GRIDS )
+
+        #------------------------------------------------  
+        # Option to create a set of visualization files
+        #------------------------------------------------            
+        if (self.CREATE_VIZ_FILES):
+            output_dir = os.path.expanduser('~/output/')
+            
+            vis.create_visualization_files( output_dir=output_dir,
+                movie_fps=10, opacity=self.opacity )
 
     #   finalize()
     #---------------------------------------------------------------
