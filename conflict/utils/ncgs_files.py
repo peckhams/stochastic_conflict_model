@@ -453,13 +453,14 @@ class ncgs_file():
                       dtype='float32',
                       ### dtype='float64'
                       time_units='minutes', time_res='60.0',
-                      comment='',
+                      comment='', OVERWRITE_OK=False,
                       MAKE_RTI=True, MAKE_BOV=False):
 
         #----------------------------
         # Does file already exist ?
         #----------------------------
-        file_name = file_utils.check_overwrite( file_name )
+        if not(OVERWRITE_OK):
+            file_name = file_utils.check_overwrite( file_name )
         self.file_name = file_name
         
         #---------------------------------------
@@ -471,6 +472,8 @@ class ncgs_file():
         self.long_name  = long_name
         self.units_name = units_name
         self.dtype      = dtype
+        self.time_units = time_units   ####
+        self.time_res   = time_res     ####
 
         #---------------------------------------------
         # Create time metadata strings  (2020-01-14)
@@ -734,7 +737,15 @@ class ncgs_file():
     #   open_new_file()
     #----------------------------------------------------------
     def add_grid(self, grid, grid_name, time=None,
-                 time_units='minutes', time_index=-1):
+                 time_units=None, time_index=-1):
+                 ### time_units='minutes', time_index=-1):
+
+        #-------------------------------------------------
+        # NOTE: time_units is set by open_new_file() and
+        #       saved into self. Setting a default above
+        #       will override that setting and datetimes
+        #       will be incorrect.
+        #-------------------------------------------------
 
         #---------------------------------
         # Assign a value to the variable
@@ -749,6 +760,8 @@ class ncgs_file():
         #-------------------------------------
         if (time_index == -1):
             time_index = self.time_index
+        if (time_units is None):
+            time_units = self.time_units   ## See NOTE above.   
         # if (time is None):
         #     time = np.float64( time_index )   #############
 

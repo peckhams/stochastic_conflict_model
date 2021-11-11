@@ -35,18 +35,21 @@
 #  create_movie_from_images()
 #
 #  plot_data()
-#
+#  create_visualization_files()
+#  delete_png_files()
+
 #--------------------------------------------------------------------
 # import os.path
 # import shutil
 
-import glob, os
+import glob, os, time
 import numpy as np
 
 import matplotlib.pyplot as plt
 from matplotlib import cm
 from matplotlib.colors import ListedColormap
 import imageio
+import imageio_ffmpeg as imff  # for adding opacity
 
 from conflict.utils import ncgs_files
 from conflict.utils import rtg_files
@@ -77,13 +80,18 @@ def histogram_equalize( grid, PLOT_NCS=False):
     cs  = hist.cumsum()
     ncs = (cs - cs.min()) / (cs.max() - cs.min())
     ncs.astype('uint8');
-    ############## ncs.astype('uint8') # no semi-colon at end ??????????
+
     if (PLOT_NCS):
         plt.plot( ncs )
 
     flat = grid.flatten()
-    flat2 = np.uint8( 255 * (flat - flat.min()) / (flat.max() - flat.min()) )
-    grid2 = ncs[ flat2 ].reshape( grid.shape )
+    if (flat.max() != flat.min()):
+        flat2 = np.uint8( 255 * (flat - flat.min()) / (flat.max() - flat.min()) )
+        grid2 = ncs[ flat2 ].reshape( grid.shape )
+    else:
+        flat2 = np.zeros( flat.size, dtype='uint8' )
+        grid2 = ncs[ flat2 ].reshape( grid.shape )
+
     return grid2
 
 #   histogram_equalize()
@@ -380,9 +388,10 @@ def show_grid_as_image( grid, long_name, extent=None,
 #   show_grid_as_image()
 #--------------------------------------------------------------------
 def save_grid_stack_as_images( nc_file, png_dir, extent=None,
-                       stretch='power3', a=1, b=2, p=0.5,
-                       cmap='rainbow', REPORT=True,
-                       xsize=6, ysize=6, dpi=192 ):
+              stretch='power3', a=1, b=2, p=0.5,
+              cmap='rainbow', REPORT=True,
+              BLACK_ZERO=False, LAND_SEA_BACKDROP=False,
+              xsize=6, ysize=6, dpi=192 ):
 
     # Example nc_files:
     # nc_file = case_prefix + '_2D-Q.nc'
@@ -396,8 +405,8 @@ def save_grid_stack_as_images( nc_file, png_dir, extent=None,
 
     ncgs = ncgs_files.ncgs_file()        
     ncgs.open_file( nc_file )
-    var_name_list = ncgs.get_var_names()
-    var_index = 3   # 0=time, 1=X, 2=Y, 3=V  ###############
+    var_name_list = ncgs.get_var_names( no_dim_vars=True )  ####
+    var_index = 0   # (dim vars are now excluded)
     var_name  = var_name_list[ var_index ]
     long_name = ncgs.get_var_long_name( var_name )
     n_grids = ncgs.ncgs_unit.variables[var_name].n_grids
@@ -437,6 +446,8 @@ def save_grid_stack_as_images( nc_file, png_dir, extent=None,
         show_grid_as_image( grid, long_name, cmap=cmap,
                             stretch=stretch, a=a, b=b, p=p, 
                             extent=extent,
+                            BLACK_ZERO=BLACK_ZERO,
+                            LAND_SEA_BACKDROP=LAND_SEA_BACKDROP,
                             NO_SHOW=True, im_file=im_file,
                             xsize=xsize, ysize=ysize, dpi=dpi )
                             
@@ -613,6 +624,135 @@ def plot_data( x, y, y2=None, xmin=None, xmax=None, ymin=None, ymax=None,
 
 #   plot_data()
 #----------------------------------------------------------------------------   
+def create_visualization_files( output_dir=None, movie_fps=10, opacity=1.0):
+
+    #------------------------------------------------
+    # Write a separate function to create movies
+    # from the rainfall grid stacks (RTS format) ??
+    #------------------------------------------------
+    if (output_dir is None):
+        print('SORRY, output_dir argument is required.')
+        print()
+        return
+    os.chdir( output_dir )
+               
+    #------------------------------------
+    # Setup required output directories
+    #------------------------------------
+    temp_png_dir = output_dir + 'temp_png/'
+    if not(os.path.exists( temp_png_dir )):
+        os.mkdir( temp_png_dir )
+    #-----------------------------------------
+    movie_dir = output_dir + 'movies/'
+    if not(os.path.exists( movie_dir )):
+        os.mkdir( movie_dir )
+    #-----------------------------------------
+    # image_dir = output_dir + 'images/'
+    # if not(os.path.exists( image_dir )):
+    #     os.mkdir( image_dir )
+       
+    #----------------------------------------------
+    # Create set of images and movie for all "2D"
+    # files which contain grid stacks.  e.g. *.nc'
+    #----------------------------------------------
+    nc_file_list = glob.glob('*.nc')
+    for nc_file in nc_file_list:
+        #------------------------------------------
+        # Change the stretch for specific files ?
+        #------------------------------------------
+#         if nc_file.endswith('???.nc'):
+#             cur_stretch = 'power3'
+#             stretch = 'hist_equal'
+            
+        #------------------------------------
+        # First, create a set of PNG images
+        #-------------------------------------------------
+        # Note: Linear stretch may be necessary to avoid
+        #       having the land and sea change color.
+        #       Power3 stretch may also be okay.
+        #-------------------------------------------------
+        save_grid_stack_as_images( nc_file, temp_png_dir,
+                                   ### extent=None,  # auto-computed
+                                   ## stretch='hist_equal', a=1, b=2, p=0.5,
+                                   stretch='linear', a=1, b=2, p=0.5,
+                                   ## stretch='power3', a=1, b=2, p=0.5,
+                                   cmap='rainbow', REPORT=True,
+                                   LAND_SEA_BACKDROP=True,  ####
+                                   xsize=8, ysize=8, dpi=192)
+
+        #----------------------------------------------
+        # Create movie from set of images in temp_png
+        #----------------------------------------------
+        # movie_fps = "frames per second"
+        mp4_file = nc_file.replace('.nc', '.mp4')
+        mp4_path = (movie_dir + mp4_file)
+        create_movie_from_images( mp4_path, temp_png_dir,
+                                  fps=movie_fps, REPORT=True)
+
+        #-----------------------------------
+        # Delete all PNG files in temp_png
+        #-----------------------------------
+        delete_png_files( temp_png_dir )
+
+    #---------------------------------------------------
+    # Convert MP4 movies to WEBM movies with opacity ?
+    # To hopefully allow backdrop overlay in Causemos.
+    #---------------------------------------------------
+    if (opacity == 1.0):
+        return
+
+    #-----------------------------------------        
+    # Get the full path to ffmpeg executable
+    #--------------------------------------------
+    # -y means OK to overwrite files w/o asking
+    # -hide_banner suppresses extra chatter
+    #--------------------------------------------   
+    print('Converting mp4 to webm format with opacity...')
+    ffmpeg_path = imff.get_ffmpeg_exe()
+    hb = ' -hide_banner -y '
+    
+    #------------------------------------------------        
+    # Convert mp4 to webm with opacity, with ffmpeg
+    #------------------------------------------------
+    os.chdir( movie_dir )
+    mp4_file_list = glob.glob('*.mp4')
+    for mp4_file in mp4_file_list:
+        cmd_p1 = ffmpeg_path + hb + ' -i '
+        cmd_p2 = ' -filter_complex "format=yuva444p,colorchannelmixer=aa=0.5" '
+        webm_file = mp4_file.replace('.mp4', '.webm')
+        # print('#### mp4_file  =', mp4_file)
+        # print('#### webm_file =', webm_file)
+        cmd       = (cmd_p1 + mp4_file + cmd_p2 + webm_file)
+        os.system( cmd )
+    print('Finished converting mp4 to webm format with opacity.')
+    print('   opacity =', opacity )
+    print()
+
+#   create_visualization_files()
+#----------------------------------------------------------------------------
+def delete_png_files( temp_png_dir ):
+
+    png_files = glob.glob( temp_png_dir + '*.png' )
+    for file in png_files:
+        try:
+           os.remove( file )
+        except OSError as e:
+            print("Error: %s : %s" % (file, e.strerror)) 
+
+    #-------------------
+    # Is this needed ?
+    #-------------------
+    time.sleep( 1.0 )
+
+    print('Finished deleting PNG files in:')
+    print('  ' + temp_png_dir)
+    print()
+
+#   delete_png_files()
+#----------------------------------------------------------------------------
+
+
+
 
 
 

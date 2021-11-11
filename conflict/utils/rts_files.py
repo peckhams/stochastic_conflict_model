@@ -311,13 +311,14 @@ class rts_file():
     def open_new_file(self, file_name, info=None,
                       var_name='UNKNOWN',
                       dtype='float32',
-                      VERBOSE=False,
+                      VERBOSE=False, OVERWRITE_OK=False,
                       MAKE_RTI=True, MAKE_BOV=False):
 
         #----------------------------
         # Does file already exist ?
         #----------------------------
-        file_name = file_utils.check_overwrite( file_name )
+        if not(OVERWRITE_OK):
+            file_name = file_utils.check_overwrite( file_name )
         self.file_name = file_name
         
         #---------------------------------------
