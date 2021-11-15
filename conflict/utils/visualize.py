@@ -411,6 +411,16 @@ def save_grid_stack_as_images( nc_file, png_dir, extent=None,
     long_name = ncgs.get_var_long_name( var_name )
     n_grids = ncgs.ncgs_unit.variables[var_name].n_grids
 
+    #-----------------------------------------------
+    # MINT netCDF conventions:
+    #    bounds = [minlon, minlat, maxlon, maxlat]
+    # For matplotlib.pyplot.imshow():
+    #    extent = [minlon, maxlon, minlat, maxlat]
+    #-----------------------------------------------
+    if (extent is None):
+        bounds = ncgs.ncgs_unit.geospatial_bounds 
+        extent = [ bounds[0], bounds[2], bounds[1], bounds[3]]
+
     im_title = long_name.replace('_', ' ').title()
     im_file_prefix = 'TF_Grid_Movie_Frame_'
     time_pad_map = {1:'0000', 2:'000', 3:'00', 4:'0', 5:''}
@@ -424,7 +434,7 @@ def save_grid_stack_as_images( nc_file, png_dir, extent=None,
         print('  ' + 'n_grids   =', n_grids)
         print('This may take a few minutes.')
         print('Working...')
-        
+   
     time_index = 0
     while (True):
         # print('time index =', time_index )
@@ -480,6 +490,8 @@ def save_rts_as_images( rts_file, png_dir, extent=None,
     n_grids = rts.number_of_grids()
     print('Byte swap needed =', rts.byte_swap_needed())
 
+    # For matplotlib.pyplot.imshow():
+    # extent = [minlon, maxlon, minlat, maxlat]    
     if (extent is None):
         extent = rts.get_bounds()
 
