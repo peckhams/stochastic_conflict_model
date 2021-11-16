@@ -271,6 +271,7 @@ def read_and_show_rtg( rtg_filename, long_name, VERBOSE=True,
 def show_grid_as_image( grid, long_name, extent=None,
                         cmap='rainbow', BLACK_ZERO=False,
                         LAND_SEA_BACKDROP=False,
+                        LAND_SEA_RED_BACKDROP=False,                        
                         stretch='power3',
                         a=1, b=2, p=0.5,
                         NO_SHOW=False, im_file=None,
@@ -335,6 +336,17 @@ def show_grid_as_image( grid, long_name, extent=None,
         new_colors[0,:]   = land_green
         new_colors[255,:] = sea_blue
         new_cmap = ListedColormap( new_colors )
+    elif (LAND_SEA_RED_BACKDROP):
+        n_colors = 3
+        color_map  = cm.get_cmap( cmap, n_colors )
+        new_colors = color_map( np.linspace(0, 1, n_colors) )
+        land_green = np.array([198, 229, 188, 256]) / 256.0
+        sea_blue   = np.array([170, 211, 223, 256]) / 256.0
+        red        = np.array([256,   0,   0, 256]) / 256.0
+        new_colors[0,:] = land_green
+        new_colors[1,:] = red
+        new_colors[2,:] = sea_blue
+        new_cmap = ListedColormap( new_colors )
     else:
         new_cmap = cmap
     
@@ -390,7 +402,9 @@ def show_grid_as_image( grid, long_name, extent=None,
 def save_grid_stack_as_images( nc_file, png_dir, extent=None,
               stretch='power3', a=1, b=2, p=0.5,
               cmap='rainbow', REPORT=True,
-              BLACK_ZERO=False, LAND_SEA_BACKDROP=False,
+              BLACK_ZERO=False,
+              LAND_SEA_BACKDROP=False,
+              LAND_SEA_RED_BACKDROP=False,
               xsize=6, ysize=6, dpi=192 ):
 
     # Example nc_files:
@@ -458,6 +472,7 @@ def save_grid_stack_as_images( nc_file, png_dir, extent=None,
                             extent=extent,
                             BLACK_ZERO=BLACK_ZERO,
                             LAND_SEA_BACKDROP=LAND_SEA_BACKDROP,
+                            LAND_SEA_RED_BACKDROP=LAND_SEA_RED_BACKDROP,
                             NO_SHOW=True, im_file=im_file,
                             xsize=xsize, ysize=ysize, dpi=dpi )
                             
@@ -675,7 +690,14 @@ def create_visualization_files( output_dir=None, movie_fps=10, opacity=1.0):
 #         if nc_file.endswith('???.nc'):
 #             cur_stretch = 'power3'
 #             stretch = 'hist_equal'
-            
+          
+        if ('IDs' in nc_file):
+            LAND_SEA_BACKDROP     = True
+            LAND_SEA_RED_BACKDROP = False
+        else:
+            LAND_SEA_BACKDROP     = False
+            LAND_SEA_RED_BACKDROP = True
+                      
         #------------------------------------
         # First, create a set of PNG images
         #-------------------------------------------------
@@ -689,7 +711,9 @@ def create_visualization_files( output_dir=None, movie_fps=10, opacity=1.0):
                                    stretch='linear', a=1, b=2, p=0.5,
                                    ## stretch='power3', a=1, b=2, p=0.5,
                                    cmap='rainbow', REPORT=True,
-                                   LAND_SEA_BACKDROP=True,  ####
+                                   LAND_SEA_BACKDROP=LAND_SEA_BACKDROP,
+                                   LAND_SEA_RED_BACKDROP=LAND_SEA_RED_BACKDROP,
+                                   ## LAND_SEA_BACKDROP=True,  ####
                                    xsize=8, ysize=8, dpi=192)
 
         #----------------------------------------------
