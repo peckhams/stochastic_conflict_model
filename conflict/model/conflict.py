@@ -334,7 +334,11 @@ class conflict():
         # Assign ocean grid cells their own, nonzero ID
         # Use new "LAND_SEA_BACKDROP" option (via w1).
         #------------------------------------------------
+        # Setting S=2 for ocean/nodata results in the
+        # conflicts being another shade of green.
+        #------------------------------------------------        
         w1 = (self.U == 0)   # boolean array
+        self.S[ w1 ] = 2     # highest value; light blue.
         self.IDs[ w1 ] = max_ID
         # self.IDs[ w1 ] = self.ran_IDs[0]
     
@@ -616,7 +620,7 @@ class conflict():
         w3 = np.logical_and( self.S == 1, B2 == 1 )
         n3 = w3.sum()        
  
-        #------------------------------------       
+        #------------------------------------
         # Perform the required updates to S
         #------------------------------------
         i = self.start_index
@@ -624,13 +628,13 @@ class conflict():
         self.IDs[ w2 ] = self.ran_IDs[i:i + n2]
         self.start_index += n2
         self.n_conflict_cells += n2
-        #---------------------------------
-        self.S[ w3 ] = (1 - B2[ w3 ])
-        self.n_conflict_cells -= n3
         #---------------------------------------- 
         # Reset IDs to zero where resolved (w3)
-        #----------------------------------------        
-        self.IDs[ w3 ] = 0  # Same result?
+        #----------------------------------------
+        self.n_conflict_cells -= n3
+        self.S[ w3 ]   = 0
+        self.IDs[ w3 ] = 0   # Same as below
+        ## self.S[ w3 ] = (1 - B2[ w3 ])
         ## self.IDs[ w3 ] = self.IDs[w3] * (1 - B2[w3])        
         #---------------------------------------------       
         if (self.REPORT):
@@ -1518,12 +1522,27 @@ class conflict():
 
         #------------------------------------------------  
         # Option to create a set of visualization files
-        #------------------------------------------------            
+        #--------------------------------------------------
+        # NOTE!  Dojo doesn't allow media directory to be
+        #        in output directory.  Must be siblings
+        #        because they are mounted separately.
+        #--------------------------------------------------          
         if (self.CREATE_VIZ_FILES):
             output_dir = os.path.expanduser('~/output/')
-            
+            media_dir  = os.path.expanduser('~/media/')
+
             vis.create_visualization_files( output_dir=output_dir,
-                movie_fps=10, opacity=self.opacity )
+                media_dir=media_dir, movie_fps=10,
+                opacity=self.opacity )
+                
+        #------------------------------------------------  
+        # Option to create a set of visualization files
+        #------------------------------------------------            
+#         if (self.CREATE_VIZ_FILES):
+#             output_dir = os.path.expanduser('~/output/')
+#             
+#             vis.create_visualization_files( output_dir=output_dir,
+#                 movie_fps=10, opacity=self.opacity )
 
     #   finalize()
     #---------------------------------------------------------------
