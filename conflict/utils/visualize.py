@@ -651,30 +651,41 @@ def plot_data( x, y, y2=None, xmin=None, xmax=None, ymin=None, ymax=None,
 
 #   plot_data()
 #----------------------------------------------------------------------------   
-def create_visualization_files( output_dir=None, movie_fps=10, opacity=1.0):
-
+def create_visualization_files( output_dir=None, media_dir=None,
+                                movie_fps=10, dpi=192, opacity=1.0,
+                                xsize2D=4, ysize2D=4):
+                                
     #------------------------------------------------
     # Write a separate function to create movies
     # from the rainfall grid stacks (RTS format) ??
-    #------------------------------------------------
+    #--------------------------------------------------
+    # NOTE!  Dojo doesn't allow media directory to be
+    #        in output directory.  Must be siblings
+    #        because they are mounted separately.
+    #        Still need output_dir; added media_dir.
+    #--------------------------------------------------
     if (output_dir is None):
         print('SORRY, output_dir argument is required.')
         print()
         return
-    os.chdir( output_dir )
+    
+    if (media_dir is None):
+        print('SORRY, media_dir argument is required.')
+        print()
+        return
                
     #------------------------------------
     # Setup required output directories
     #------------------------------------
-    temp_png_dir = output_dir + 'temp_png/'
+    temp_png_dir = media_dir + 'temp_png/'
     if not(os.path.exists( temp_png_dir )):
         os.mkdir( temp_png_dir )
     #-----------------------------------------
-    movie_dir = output_dir + 'movies/'
+    movie_dir = media_dir + 'movies/'
     if not(os.path.exists( movie_dir )):
         os.mkdir( movie_dir )
     #-----------------------------------------
-    # image_dir = output_dir + 'images/'
+    # image_dir = media_dir + 'images/'
     # if not(os.path.exists( image_dir )):
     #     os.mkdir( image_dir )
        
@@ -682,6 +693,7 @@ def create_visualization_files( output_dir=None, movie_fps=10, opacity=1.0):
     # Create set of images and movie for all "2D"
     # files which contain grid stacks.  e.g. *.nc'
     #----------------------------------------------
+    os.chdir( output_dir )
     nc_file_list = glob.glob('*.nc')
     for nc_file in nc_file_list:
         #------------------------------------------
@@ -714,7 +726,7 @@ def create_visualization_files( output_dir=None, movie_fps=10, opacity=1.0):
                                    LAND_SEA_BACKDROP=LAND_SEA_BACKDROP,
                                    LAND_SEA_RED_BACKDROP=LAND_SEA_RED_BACKDROP,
                                    ## LAND_SEA_BACKDROP=True,  ####
-                                   xsize=8, ysize=8, dpi=192)
+                                   xsize=xsize2D, ysize=ysize2D, dpi=dpi)
 
         #----------------------------------------------
         # Create movie from set of images in temp_png
