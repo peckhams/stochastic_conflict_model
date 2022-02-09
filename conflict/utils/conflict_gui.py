@@ -8,7 +8,7 @@ same directory as the Jupyter notebook.
 """
 #------------------------------------------------------------------------
 #
-#  Copyright (C) 2021.  Scott D. Peckham
+#  Copyright (C) 2021-2022.  Scott D. Peckham
 #
 #------------------------------------------------------------------------
 
@@ -31,19 +31,22 @@ import os, os.path
 #  class conflict_gui
 #      __init__()
 #      pix_str()
+#      get_version_str()
 #      show_gui()
 #      make_tab_gui()
 #      get_padding()
 #      make_input_panel()
 #      reset_input_panel()
 #      make_output_panel()
+#      write_config_file()
+#      run_conflict_model()
 #
 #------------------------------------------------------------------------
 class conflict_gui:
     #--------------------------------------------------------------------
     def __init__(self):
 
-        self.version  = '0.5'
+        self.version  = '0.8'
         self.user_var = None
         #----------------------------------------------------------
         # "full_box_width" = (label_width + widget_width)
@@ -70,9 +73,11 @@ class conflict_gui:
         self.default_U_file    = 'input_files/Horn_of_Africa_GPW-v4_pop_count_2020_450sec.tif'
         self.default_C1_file   = 'input_files/Horn_of_Africa_GPW-v4_pop_count_2020_450sec.tif'
         self.default_C2_file   = '(none, uniform)'
-        self.default_gui_cfg_file = '~/Conflict/Input/gui_conflict.cfg'
-        self.default_out_file  = '~/Conflict/Output/conflicts.rts'
-        self.default_IDs_file  = '~/Conflict/Output/conflict_IDs.rts'
+        self.default_gui_cfg_file = 'input_files/gui_conflict.cfg'
+        self.default_out_file     = '~/output/conflicts.rts'
+        self.default_IDs_file     = '~/output/conflict_IDs.rts'
+        self.default_create_mp4   = 'No'
+        self.default_create_webm  = 'No'
         #-----------------------------------------------------
         self.gui_width_px  = self.pix_str( self.gui_width )
         #---------------------------------------------------
@@ -89,6 +94,10 @@ class conflict_gui:
     #--------------------------------------------------------------------
     def pix_str(self, num):
         return str(num) + 'px'
+
+    #--------------------------------------------------------------------
+    def get_version_str(self):
+        return self.version
 
     #--------------------------------------------------------------------
     def show_gui(self):
@@ -350,15 +359,38 @@ class conflict_gui:
                           value=self.default_IDs_file,
                           disabled=False, style=left_style,
                           layout=Layout(width=full_width_px))
-        
+        #-----------------------------------------------------------------
+        o4a = widgets.SelectionSlider(description='Create MP4 movies?',
+                          options=['No', 'Yes'],
+                          value=self.default_create_mp4,
+                          disabled=False, style=left_style)
+        o4b = widgets.Label(value='(saved in ~/media/movies)')
+        o4  = widgets.HBox([o4a, o4b], 
+                           layout=Layout(width=full_width_px) )
+        o5a = widgets.SelectionSlider(description='Create WEBM movies?',
+                          options=['No', 'Yes'],
+                          value=self.default_create_webm,
+                          disabled=False, style=left_style)
+        o5b = widgets.Label(value='(saved in ~/media/movies)')
+        o5 = widgets.HBox([o5a, o5b], 
+                           layout=Layout(width=full_width_px) )
+        #-----------------------------------------------------------------
+        msg  = 'Note:  You may need to create the media and output '
+        msg += 'directories in your home directory.'
+        o6 = widgets.Label(description='Note:', value=msg,
+                          disabled=False, style=left_style,
+                          layout=Layout(width=full_width_px))
+                        
         #-------------------------------
         # Arrange widgets in the panel
         #-------------------------------
-        panel = widgets.VBox([o1, o2, o3])
+        panel = widgets.VBox([o1, o2, o3, o4, o5, o6])
  
         self.output_gui_cfg_file  = o1
         self.output_conflict_file = o2
-        self.output_IDs_file      = o3 
+        self.output_IDs_file      = o3
+        self.output_create_mp4    = o4a
+        self.output_create_webm   = o5a
         self.output_panel         = panel
 
         #-----------------
@@ -380,6 +412,7 @@ class conflict_gui:
     #-------------------------------------------------------------------- 
     def write_config_file(self):
     
+        vstr = self.version
         #-----------------------------
         # Open new cfg file to write
         #-----------------------------
@@ -388,11 +421,18 @@ class conflict_gui:
         
         cfg_unit = open( cfg_file, 'w')
         cfg_unit.write('#-----------------------------------------------\n')
-        cfg_unit.write('# Configuration file for Conflict Model v. 0.5\n')
+        cfg_unit.write('# Configuration file for Conflict Model v. ' + vstr + '\n')
         cfg_unit.write('#-----------------------------------------------\n')
         cfg_unit.write('n_steps   = ' + str(self.input_n_steps.value) + '\n')
         cfg_unit.write('n_cols    = ' + str(self.input_n_cols.value) + '\n')
         cfg_unit.write('n_rows    = ' + str(self.input_n_rows.value) + '\n')
+        #--------------------------------------------------------------------
+        # Default bounding box: Horn of Africa
+        # User can edit text file, if they want.
+        cfg_unit.write('min_lat   = ' + str(-5.0) + '\n')
+        cfg_unit.write('max_lat   = ' + str(25.0) + '\n')          
+        cfg_unit.write('min_lon   = ' + str(25.0) + '\n')
+        cfg_unit.write('max_lon   = ' + str(55.0) + '\n')          
         #--------------------------------------------------------------------
         U_file = str(self.input_U_file.value)
         if (U_file == '(none, uniform)'):
@@ -418,11 +458,19 @@ class conflict_gui:
         cfg_unit.write('p_resolve = ' + str(self.input_p_resolve.value) + '\n')
         cfg_unit.write('spread_method = ' + str(1) + '\n')
         cfg_unit.write('time_lag  = ' + str(1) + '\n')
-        cfg_unit.write('REPORT    = ' + str(1) + '\n')                       
+        cfg_unit.write('REPORT    = ' + str(1) + '\n')
+        cfg_unit.write('OVERWRITE_OK = ' + str(1) + '\n')                     
         cfg_unit.write("out_file  = '" + self.output_conflict_file.value + "'\n")
-        cfg_unit.write("IDs_file  = '" + self.output_IDs_file.value + "'\n")         
+        cfg_unit.write("IDs_file  = '" + self.output_IDs_file.value + "'\n")
+        #--------------------------------------------------------------------
+        int_map  = {'No':'0', 'Yes':'1'}
+        mp4_str  = int_map[self.output_create_mp4.value]
+        webm_str = int_map[self.output_create_webm.value]             
+        cfg_unit.write('CREATE_MP4_MOVIES  = ' + mp4_str  + '\n')
+        cfg_unit.write('CREATE_WEBM_MOVIES = ' + webm_str + '\n')
+        cfg_unit.write('opacity   = ' + str(0.7) + '\n')          
         cfg_unit.close()
-         
+        #--------------------------------------------------------------------
         self.gui_cfg_file = cfg_file
 
     #   write_config_file()

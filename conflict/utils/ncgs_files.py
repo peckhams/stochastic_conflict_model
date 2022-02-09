@@ -712,9 +712,15 @@ class ncgs_file():
         # Note!  add_profile() now builds a datetime vector.
         #        Recall time is an unlimited dimension.
         #-------------------------------------------------------------
+        # Note: Must use ".numpy_dtype" vs. ".dtype" (already used).
+        #-------------------------------------------------------------        
         time_dtype = time_utils.get_time_dtype( time_units )
-        ncgs_unit.variables['datetime'].long_name = 'datetime' 
-        ncgs_unit.variables['datetime'].units = time_dtype
+        time_delta = str(time_res) + ' ' + time_units
+        ncgs_unit.variables['datetime'].long_name  = 'datetime'
+        ncgs_unit.variables['datetime'].time_delta = time_delta         
+        ncgs_unit.variables['datetime'].numpy_dtype = time_dtype 
+        ncgs_unit.variables['datetime'].units = 'none'
+        ## ncgs_unit.variables['datetime'].units = time_dtype
                
         #---------------------------------------
         # Save attributes of the main variable

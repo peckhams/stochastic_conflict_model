@@ -35,7 +35,7 @@
 #  create_movie_from_images()
 #
 #  plot_data()
-#  create_visualization_files()
+#  create_media_files()
 #  delete_png_files()
 
 #--------------------------------------------------------------------
@@ -356,13 +356,30 @@ def show_grid_as_image( grid, long_name, extent=None,
     # figure = plt.figure(1, figsize=(xsize, ysize))
     fig, ax = plt.subplots( figsize=(xsize, ysize), dpi=dpi)
     im_title = long_name.replace('_', ' ').title()
-    ax.set_title( im_title )
+    #----------------------------------------------------
+    if (dpi is not None):
+        plt.rc('axes',  titlesize=8) # fontsize of the title
+        plt.rc('axes',  labelsize=6)  # fontsize of the x and y labels
+        plt.rc('xtick', labelsize=6)  # fontsize of the x tick labels
+        plt.rc('ytick', labelsize=6)  # fontsize of the y tick labels
+        # plt.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.1)
+    #----------------------------------------------------
+    # Default label size is 10 points    
+    ax.set_title( im_title)
     ax.set_xlabel('Longitude [deg]')
     ax.set_ylabel('Latitude [deg]')
-
+    #----------------------------------------------------
+    # plt.setp(ax.get_xticklabels(), fontsize=8)
+    # plt.setp(ax.get_yticklabels(), fontsize=8)
+    #----------------------------------------------------
+#     ax.set_title( im_title, fontsize=16 )
+#     ax.set_xlabel('Longitude [deg]', fontsize=14)
+#     ax.set_ylabel('Latitude [deg]',  fontsize=14)
+#     ax.tick_params(axis='x', labelsize=14)
+#     ax.tick_params(axis='y', labelsize=14)
+    #---------------------------------------
     gmin = grid2.min()
     gmax = grid2.max()
-
     im = ax.imshow(grid2, interpolation='nearest', cmap=new_cmap,
                    vmin=gmin, vmax=gmax, extent=extent)
 
@@ -401,15 +418,17 @@ def show_grid_as_image( grid, long_name, extent=None,
 #--------------------------------------------------------------------
 def save_grid_stack_as_images( nc_file, png_dir, extent=None,
               stretch='power3', a=1, b=2, p=0.5,
-              cmap='rainbow', REPORT=True,
+              cmap='jet', REPORT=True,
+              ## cmap='rainbow', REPORT=True,
               BLACK_ZERO=False,
               LAND_SEA_BACKDROP=False,
               LAND_SEA_RED_BACKDROP=False,
-              xsize=6, ysize=6, dpi=192 ):
+              xsize=6, ysize=6, dpi=None ):
+              ### xsize=6, ysize=6, dpi=192 ):
 
-    # Example nc_files:
-    # nc_file = case_prefix + '_2D-Q.nc'
-    # nc_file = case_prefix + '_2D-d-flood.nc'
+    #----------------------------------------------------
+    # Note: dpi=None gives good default fontsizes, etc.
+    #----------------------------------------------------
 
     ## if ('_2D' not in nc_file):
     if ('2D' not in nc_file):
@@ -487,11 +506,12 @@ def save_rts_as_images( rts_file, png_dir, extent=None,
                         stretch='power3', a=1, b=2, p=0.5,
                         cmap='rainbow', BLACK_ZERO=False,
                         REPORT=True,
-                        xsize=6, ysize=6, dpi=192):
+                        xsize=6, ysize=6, dpi=None):
+                        ### xsize=6, ysize=6, dpi=192):
 
-    # Example rts_files:
-    # rts_file = case_prefix + '_2D-Q.rts'
-    # rts_file = case_prefix + '_2D-d-flood.rts'
+    #----------------------------------------------------
+    # Note: dpi=None gives good default fontsizes, etc.
+    #----------------------------------------------------
 
     if ('.rts' not in rts_file):
         print('ERROR: This function is only for RTS files.') 
@@ -582,16 +602,43 @@ def create_movie_from_images( mp4_file, png_dir, fps=10, REPORT=True):
     # Note:  The default codec for imageio is "libx264", which
     #        is widely used and supports mp4; H.264 codec.
     #        You can request  "mpeg4" also, and it works.
+    #        The codec "mjpeg" is said to be good for JPEG images.
     #        If you use Get Info on an MP4, the More Info section
     #        give codecs for these as:  "H.264" or "MPEG-4 Video".
     #        If I copy an MP4 to: topoflow36/movies on GitHub,
     #        I can't get them to play in Jupyter notebook or lab.
     #        See the notebook:  MP4_Video_Test.ipynb for more info.
     # https://imageio.readthedocs.io/en/stable/format_ffmpeg.html
+    # https://imageio.readthedocs.io/en/stable/reference/_backends/
+    #         imageio.plugins.ffmpeg.html
     #----------------------------------------------------------------
-    writer = imageio.get_writer( mp4_file, fps=fps )
-    ## writer = imageio.get_writer( mp4_file, fps=fps, codec='mpeg4' )
-        
+    #  quality ranges from 0 to 10.  Default is 5 in ffmpeg plugin.
+    #    But QuickTime can't play if quality = 10 & default codec.
+    #  pixelformat = 'yuvj444p' records all 3 channels at full res.
+    #                same as 'yuv444p' ???
+    #                ffmpeg plugin default is: 'yuv420p'
+    #----------------------------------------------------------------
+    #writer = imageio.get_writer( mp4_file, fps=fps, quality=9.5 ) # works 1.2-1.9MB (IDs)
+    # writer = imageio.get_writer( mp4_file, fps=fps, quality=9)  # works 1.5MB (IDs)
+    # writer = imageio.get_writer( mp4_file, fps=fps, quality=8)  # works 1.4MB (IDs)
+    writer = imageio.get_writer( mp4_file, fps=fps )  # (default quality=5)
+    # writer = imageio.get_writer( mp4_file, fps=fps, codec='mpeg4' )
+
+    #------------------------------
+    # QuickTime can't play these.
+    #------------------------------
+    # writer = imageio.get_writer( mp4_file, fps=fps, quality=10 )  # 1.3MB (IDs)
+    # writer = imageio.get_writer( mp4_file, fps=fps, quality=9.9 ) # 1.3MB (IDs)
+    # writer = imageio.get_writer( mp4_file, fps=fps, quality=9.6 ) # 1.6MB (IDs)
+    # writer = imageio.get_writer( mp4_file, fps=fps,
+    #                  quality=10, pixelformat='yuvj444p' )
+    # writer = imageio.get_writer( mp4_file, fps=fps,
+    #                  quality=9, pixelformat='yuvj444p' )
+    # writer = imageio.get_writer( mp4_file, fps=fps,
+    #                  quality=8, pixelformat='yuvj444p' )
+    # writer = imageio.get_writer( mp4_file, fps=fps,
+    #                  quality=8, pixelformat='yuv444p' )
+
     for im_file in im_file_list:
         writer.append_data(imageio.imread( im_file ))
     writer.close()
@@ -651,10 +698,16 @@ def plot_data( x, y, y2=None, xmin=None, xmax=None, ymin=None, ymax=None,
 
 #   plot_data()
 #----------------------------------------------------------------------------   
-def create_visualization_files( output_dir=None, media_dir=None,
-                                movie_fps=10, dpi=192, opacity=1.0,
-                                xsize2D=4, ysize2D=4):
-                                
+def create_media_files( output_dir=None, media_dir=None,
+                        WEBM=True, opacity=1.0,
+                        xsize2D=4, ysize2D=4,
+                        movie_fps=10, dpi=None):
+                        ## movie_fps=10, dpi=192):
+
+    #----------------------------------------------------
+    # Note: dpi=None gives good default fontsizes, etc.
+    #----------------------------------------------------
+                                    
     #------------------------------------------------
     # Write a separate function to create movies
     # from the rainfall grid stacks (RTS format) ??
@@ -673,7 +726,13 @@ def create_visualization_files( output_dir=None, media_dir=None,
         print('SORRY, media_dir argument is required.')
         print()
         return
-               
+
+    #-------------------------------------------
+    # Get & save the current working directory
+    # likely, the package directory
+    #-------------------------------------------
+    start_dir = os.getcwd()
+                   
     #------------------------------------
     # Setup required output directories
     #------------------------------------
@@ -688,7 +747,7 @@ def create_visualization_files( output_dir=None, media_dir=None,
     # image_dir = media_dir + 'images/'
     # if not(os.path.exists( image_dir )):
     #     os.mkdir( image_dir )
-       
+  
     #----------------------------------------------
     # Create set of images and movie for all "2D"
     # files which contain grid stacks.  e.g. *.nc'
@@ -720,9 +779,10 @@ def create_visualization_files( output_dir=None, media_dir=None,
         save_grid_stack_as_images( nc_file, temp_png_dir,
                                    ### extent=None,  # auto-computed
                                    ## stretch='hist_equal', a=1, b=2, p=0.5,
-                                   stretch='linear', a=1, b=2, p=0.5,
+                                   stretch='linear',
                                    ## stretch='power3', a=1, b=2, p=0.5,
-                                   cmap='rainbow', REPORT=True,
+                                   cmap='jet', REPORT=True,
+                                   #### cmap='rainbow', REPORT=True, # jet > rainbow
                                    LAND_SEA_BACKDROP=LAND_SEA_BACKDROP,
                                    LAND_SEA_RED_BACKDROP=LAND_SEA_RED_BACKDROP,
                                    ## LAND_SEA_BACKDROP=True,  ####
@@ -746,7 +806,9 @@ def create_visualization_files( output_dir=None, media_dir=None,
     # Convert MP4 movies to WEBM movies with opacity ?
     # To hopefully allow backdrop overlay in Causemos.
     #---------------------------------------------------
-    if (opacity == 1.0):
+    ### if (opacity == 1.0) or not(WEBM):
+    if not(WEBM):
+        os.chdir( start_dir )  # need this
         return
 
     #-----------------------------------------        
@@ -775,8 +837,9 @@ def create_visualization_files( output_dir=None, media_dir=None,
     print('Finished converting mp4 to webm format with opacity.')
     print('   opacity =', opacity )
     print()
-
-#   create_visualization_files()
+    os.chdir( start_dir )  ####
+    
+#   create_media_files()
 #----------------------------------------------------------------------------
 def delete_png_files( temp_png_dir ):
 

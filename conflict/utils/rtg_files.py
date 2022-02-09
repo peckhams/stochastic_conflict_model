@@ -232,7 +232,12 @@ class rtg_file():
         # Update "info" as necessary
         #-----------------------------
         info.grid_file   = file_name
-        info.data_type   = rti_files.get_rti_data_type( dtype )
+        #-------------------------------------------------------  
+        # NOTE:  This causes problems.  If dtype keyword is
+        #        not set, data_type always changes to 'FLOAT',
+        #        even if set correctly in info.data_type.
+        #-------------------------------------------------------  
+        # info.data_type   = rti_files.get_rti_data_type( dtype )
         info.data_source = 'TopoFlow 3.6'
         ### info.gmin        = -9999.0
         ### info.gmax        = -9999.0
