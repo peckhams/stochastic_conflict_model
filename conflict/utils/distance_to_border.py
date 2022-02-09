@@ -20,7 +20,8 @@ from conflict.utils import rti_files
 # save_grid_to_rtg()
 #
 #--------------------------------------------------------------------
-def read_country_code_grid( nc_file=None, REPORT=True):
+def read_country_code_grid( nc_file=None, REPORT=True,
+                            SAVE_AS_RTG=False):
 
     #--------------------------------------------------------     
     # Note:  Obtained this grid of country ISO codes from:
@@ -65,8 +66,6 @@ def read_country_code_grid( nc_file=None, REPORT=True):
     #----------------------------------------------
     grid = ncgs.ncgs_unit.variables[ var_name ]
     # (nrows, ncols) = grid.shape
-    ## print('grid[0,0] =', grid[0,0])
-    ## array = np.array( grid )
     array = np.array( grid ).astype('uint8' )  # only 232 unique values
     
     #--------------------
@@ -83,18 +82,18 @@ def read_country_code_grid( nc_file=None, REPORT=True):
         print( np.unique(grid) )  # 0 through 232
 
     ncgs.close_file()
+    
+    if (SAVE_AS_RTG):
+        save_grid_to_rtg( array, rtg_file='Global_country_codes_360sec.rtg',
+                          ncols=3601, nrows=1801, data_type='BYTE',
+                          xres_sec=360, yres_sec=360,
+                          y_south_edge=minlat, y_north_edge=maxlat,
+                          x_west_edge =minlon, x_east_edge =maxlon )    
     return array
-    ## return grid
     
 #   read_country_code_grid()
 #--------------------------------------------------------------------
-def clip_global_grid( grid, minlat, maxlat, minlon, maxlon):
-
-    return grid2
-
-#   clip_global_grid()
-#--------------------------------------------------------------------
-def get_distance_to_border( stride=10, HORN_OF_AFRICA=True):
+def get_distance_to_border( stride=1, HORN_OF_AFRICA=True):
 
     start_time = time.time()
     
@@ -202,7 +201,12 @@ def get_distance_to_border( stride=10, HORN_OF_AFRICA=True):
         if (code not in big_codes):
             print('Working on code =', code)
             w1 = (codes == code)    # boolean array
-            w2 = np.invert( w1 )
+            #-----------------------------------------------------
+            # Note: Don't include distance to code=0 (the ocean)
+            #       Otherwise, get conflicts on the coastline.
+            #-----------------------------------------------------
+            w2 = np.logical_and(codes != code, codes != 0)
+            ## w2 = np.invert( w1 )
             pA = np.column_stack( (yg[w1].flatten(), xg[w1].flatten() ) )
             pB = np.column_stack( (yg[w2].flatten(), xg[w2].flatten() ) )
             print('pA.shape =', pA.shape)
@@ -216,14 +220,14 @@ def get_distance_to_border( stride=10, HORN_OF_AFRICA=True):
     # IDL "BYTE" type is unsigned (same as "uint").
     #--------------------------------------------------
     save_grid_to_rtg( bord_dist,
-                      rtg_file=s1 + '_dist_to_border.rtg',
+                      rtg_file=s1 + '_dist_to_border_360sec.rtg',
                       ncols=ncols, nrows=nrows, data_type='FLOAT',
                       xres_sec=xres_sec, yres_sec=yres_sec,
                       y_south_edge=y_south_edge,
                       y_north_edge=y_north_edge,
                       x_west_edge =x_west_edge,
                       x_east_edge =x_east_edge )
-    save_grid_to_rtg( codes, rtg_file=s1 + '_country_codes.rtg',
+    save_grid_to_rtg( codes, rtg_file=s1 + '_country_codes_360sec.rtg',
                       ncols=ncols, nrows=nrows, data_type='BYTE',
                       xres_sec=xres_sec, yres_sec=yres_sec,
                       y_south_edge=y_south_edge,
@@ -231,6 +235,28 @@ def get_distance_to_border( stride=10, HORN_OF_AFRICA=True):
                       x_west_edge =x_west_edge,
                       x_east_edge =x_east_edge )
 
+    #----------------------------------------------------
+    # Save an "inverse" distance to border grid as RTG.
+    # Need function that is max at border; drops off.
+    #----------------------------------------------------
+    w0 = (bord_dist <= 0)    # (boolean array)
+    option = 2
+    if (option == 1):
+        inv_bord_dist = 1 / (bord_dist + 1)
+    else:
+        c = 6.0   # (c > 0, adjustable)
+        inv_bord_dist = np.exp(-c * bord_dist)
+    inv_bord_dist[ w0 ] = -1.0
+    #---------------------------------------------        
+    save_grid_to_rtg( inv_bord_dist,
+                      rtg_file=s1 + '_invdist_to_border_360sec.rtg',
+                      ncols=ncols, nrows=nrows, data_type='FLOAT',
+                      xres_sec=xres_sec, yres_sec=yres_sec,
+                      y_south_edge=y_south_edge,
+                      y_north_edge=y_north_edge,
+                      x_west_edge =x_west_edge,
+                      x_east_edge =x_east_edge )    
+    
     #----------------------
     # Print final message
     #----------------------

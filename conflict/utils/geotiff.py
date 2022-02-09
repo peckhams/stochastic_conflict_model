@@ -125,15 +125,22 @@ def read_geotiff(in_file=None, REPORT=True,
     # Bounds = [ minlon, minlat, maxlon, maxlat ]'
 
     if (in_file is None):
-        in_dir  = '/Users/peckhams/Conflict/Data/GPW-v4/'  
+        in_dir  = '~/Dropbox/GitHub/stochastic_conflict_model/'
+        in_dir += 'input_files/GPW_v4/'
         in_file = 'gpw_v4_population_count_rev11_2020_30_sec.tif'
         in_file = in_dir + in_file
-
+        in_file = os.path.expanduser( in_file )
     if (rtg_file is None):
-        in_dir   = '/Users/peckhams/Conflict/Data/GPW-v4/'
+        rtg_dir  = '~/output/'
         rtg_file = 'GPW-v4_global_pop_count.rtg'
-        rtg_file = in_dir + rtg_file
-          
+        rtg_file = rtg_dir + rtg_file
+        rtg_file = os.path.expanduser( rtg_file )
+    else:
+        pass
+        # Not necessary
+        ### rtg_dir = os.getcwd()
+        ### rtg_file = rtg_dir + rtg_file
+
     #-----------------------------------------    
     # Open the input GeoTIFF file & get info
     #-----------------------------------------
@@ -165,11 +172,10 @@ def read_geotiff(in_file=None, REPORT=True,
     # Option to save as RTG file
     #-----------------------------
     if (MAKE_RTG):
-        rtg_path = in_dir + rtg_file   #####
         #-------------------------------
         # Option to create an RTI file
         #-------------------------------
-        rti = rti_files.make_info(grid_file=rtg_path,
+        rti = rti_files.make_info(grid_file=rtg_file,
                   ncols=in_ncols, nrows=in_nrows,
                   xres=in_xres_sec, yres=in_yres_sec,
                   #--------------------------------------
@@ -183,9 +189,9 @@ def read_geotiff(in_file=None, REPORT=True,
                   x_west_edge=in_bounds[0],
                   x_east_edge=in_bounds[2],
                   box_units='DEGREES')
-        rti_files.write_info( rtg_path, rti )    
+        rti_files.write_info( rtg_file, rti )    
         rtg = rtg_files.rtg_file() 
-        OK  = rtg.open_new_file( rtg_path, rti )
+        OK  = rtg.open_new_file( rtg_file, rti )
         if not(OK):
             print('ERROR during open_new_file().')
             return       
@@ -256,11 +262,19 @@ def regrid_geotiff(in_file=None, out_file=None,
         #--------------------------------
         # Use Horn of Africa as a test.
         #--------------------------------
-        test_dir   = '/Users/peckhams/Conflict/Data/GPW-v4/'
-        in_file    = test_dir + 'gpw_v4_population_count_rev11_2020_30_sec.tif'
-        out_file   = test_dir + 'Horn_of_Africa_pop_count.tif'
-        out_xres_sec = None    # will default to in_xres_sec
-        out_yres_sec = None    # will default to in_yres_sec
+        src_dir  = '~/Dropbox/GitHub/stochastic_conflict_model/'
+        in_dir  = src_dir + 'input_files/GPW_v4/' 
+        in_file = 'gpw_v4_population_count_rev11_2020_30_sec.tif'
+        in_file = in_dir + in_file
+        in_file = os.path.expanduser( in_file )
+        #-------------------------------------------------------
+        s1 = ''
+        if (out_xres_sec is not None):
+            s1 = '_' + str( out_xres_sec ) + 'sec'
+        out_dir  = src_dir + 'input_files/'
+        prefix   = 'Horn_of_Africa_GPW-v4_pop_count_2020'
+        out_file = out_dir + prefix + s1 + '.tif'
+        out_file = os.path.expanduser( out_file )
         # Bounds = [ minlon, minlat, maxlon, maxlat ]
         out_bounds = [ 25.0, -5.0, 55.0, 25.0]
   
@@ -322,6 +336,7 @@ def regrid_geotiff(in_file=None, out_file=None,
     #------------------------------------------------  
     # Resample & clip and write new grid to GeoTIFF
     #------------------------------------------------
+    print('Working...')
     out_unit = gdal.Warp( out_file, in_unit,
         format = 'GTiff',  # (output format string)
         outputBounds=out_bounds,
