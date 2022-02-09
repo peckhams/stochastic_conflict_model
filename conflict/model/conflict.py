@@ -1,7 +1,8 @@
 
-#  Copyright (c) 2021, Scott D. Peckham
+#  Copyright (c) 2021-2022, Scott D. Peckham
 #
-#  Oct  2021. NetCDF output files and movies.
+#  Jan  2022. Better support for movie options.
+#  Oct  2021. NetCDF output files and movies via visualize.py.
 #  Sept 2021. create_rti_file().  Write output to netCDF.
 #  Aug  2021. Testing and algorithm improvements.
 #  July 2021. Jupyter notebook with ipywidgets GUI and ability
@@ -177,14 +178,26 @@ class conflict():
         if not(hasattr(self, 'c_spread2')):
             self.c_spread2 = 0.0
         if not(hasattr(self, 'CREATE_INDICATORS')):                
-            self.CREATE_INDICATORS = 0   # False
-        if not(hasattr(self, 'CREATE_VIZ_FILES')):                
-            self.CREATE_VIZ_FILES = 0
+            self.CREATE_INDICATORS = 0   # False    
+        if not(hasattr(self, 'CREATE_MP4_MOVIES')):
+            if (hasattr(self, 'CREATE_VIZ_FILES')):
+                self.CREATE_MP4_MOVIES = 1            
+            else:                
+                self.CREATE_MP4_MOVIES = 0
+        if not(hasattr(self, 'CREATE_WEBM_MOVIES')):                
+            self.CREATE_WEBM_FILES = 0
         if not(hasattr(self, 'opacity')):
             self.opacity = 1.0
         if not(hasattr(self, 'OVERWRITE_OK')):
             self.OVERWRITE_OK = 0
 
+        #---------------------------------------------
+        # Note:  webm format movies are created from
+        #        mp4 movies, so next line is needed.
+        #---------------------------------------------
+        if (self.CREATE_WEBM_MOVIES == 1):
+            self.CREATE_MP4_MOVIES = 1
+            
         #-----------------------------------
         # If these aren't set in CFG file,
         # then use Horn of Africa (georef)
@@ -1501,10 +1514,20 @@ class conflict():
             print('n_conflict_cells =', n_conflict_cells)
             print('SELF CHECK...')
             print('n_conflict_cells =', self.n_conflict_cells)
+            #------------------------------------------------------
+            # If U is uniform and c_spread=c_spread2=0, then:
+            # (1) p_emerge = c_emerge 
+            # (2) fraction of cells with S(k)=0 is pr/(pe+pr)
+            # (3) fraction of cells with S(k)=1 is pe/(pe+pr)
+            # where pe = p_emerge and pr = p_resolve.
+            #------------------------------------------------------
+            f_predicted = self.c_emerge / (self.c_emerge + self.p_resolve)           
             ## Exclude borders to count n_cells
             n_cells = (self.n_cols - 1) * (self.n_rows - 1)
             f_conflict_cells = (self.n_conflict_cells / n_cells)
-            print('fraction_conflict_cells =', f_conflict_cells)
+            print('For case of uniform U and c_spread = c_spread2 = 0:')
+            print('   Predicted fraction of conflict cells =', f_predicted )
+            print('Actual fraction of conflict cells       =', f_conflict_cells )
             print('Finished.')
             print()
 
@@ -1526,23 +1549,42 @@ class conflict():
         # NOTE!  Dojo doesn't allow media directory to be
         #        in output directory.  Must be siblings
         #        because they are mounted separately.
-        #--------------------------------------------------          
-        if (self.CREATE_VIZ_FILES):
+        #--------------------------------------------------
+        # Note: ncols = nrows = 240 is the default.
+        # MacBook Pro, 16", retina display, dpi = 226
+        # Matplotlib figures use 72 ppi (points per inch)
+        #--------------------------------------------------                
+        if (self.CREATE_MP4_MOVIES):
             output_dir = os.path.expanduser('~/output/')
             media_dir  = os.path.expanduser('~/media/')
 
-            vis.create_visualization_files( output_dir=output_dir,
+            #-------------------------------------------------
+            # Tried many options here to get good resolution
+            # for both the figure and the labels, etc.
+            #-------------------------------------------------
+            vis.create_media_files( output_dir=output_dir,
                 media_dir=media_dir, movie_fps=10,
+                xsize2D=3, ysize2D=3, dpi=600,  # (best, w/ using smaller fonts)
+                ## xsize2D=2, ysize2D=2, dpi=600,  # (BAD; outside margins)
+                ## xsize2D=3, ysize2D=3, dpi=300,  # (not bad; font big; better)
+                ## xsize2D=None, ysize2D=None, dpi=300,  # doesn't work
+                ## dpi=300, # (not bad, but defaults to 7x7)
+                ## xsize2D=2, ysize2D=2, dpi=300,  # (BAD; outside margins)
+                ## xsize2D=3, ysize2D=3, dpi=300,  # (not bad; font big; better)
+                ## xsize2D=4, ysize2D=4, dpi=300,  # (not bad; font big; better)
+                ## xsize2D=4, ysize2D=4, dpi=226,  # (not bad; font big)
+                ## xsize2D=4, ysize2D=4, dpi=192,
+                ## xsize2D=4, ysize2D=4, dpi=150,  #  # (not bad, font big, blockier)
+                ## xsize2D=6, ysize2D=6, dpi=None,  # BETTER; but need bigger font, less margin
+                ## xsize2D=2, ysize2D=2, dpi=None, # BAD
+                ## xsize2D=3, ysize2D=3, dpi=226,  # BAD
+                ## xsize2D=2, ysize2D=2, dpi=226,  # BAD
+                ## xsize2D=6, ysize2D=6, dpi=72,   # BAD
+                ## xsize2D=7, ysize2D=7, dpi=None, # BAD
+                ## xsize2D=6, ysize2D=6, dpi=None, # BAD
+                ## xsize2D=3, ysize2D=3, dpi=192,  # BAD
+                WEBM=self.CREATE_WEBM_MOVIES,
                 opacity=self.opacity )
-                
-        #------------------------------------------------  
-        # Option to create a set of visualization files
-        #------------------------------------------------            
-#         if (self.CREATE_VIZ_FILES):
-#             output_dir = os.path.expanduser('~/output/')
-#             
-#             vis.create_visualization_files( output_dir=output_dir,
-#                 movie_fps=10, opacity=self.opacity )
 
     #   finalize()
     #---------------------------------------------------------------
