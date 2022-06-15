@@ -69,13 +69,19 @@ class conflict_gui:
         self.left_box_width    = (self.left_label_width + self.left_widget_width)
         self.next_box_width    = (self.next_label_width + self.next_widget_width)
         self.button_width      = 70   # big enough for "Reset"
-        #-----------------------------------------------------
-        self.default_U_file    = 'input_files/Horn_of_Africa_GPW-v4_pop_count_2020_450sec.tif'
-        self.default_C1_file   = 'input_files/Horn_of_Africa_GPW-v4_pop_count_2020_450sec.tif'
-        self.default_C2_file   = '(none, uniform)'
-        self.default_gui_cfg_file = 'input_files/gui_conflict.cfg'
-        self.default_out_file     = '~/output/conflicts.rts'
-        self.default_IDs_file     = '~/output/conflict_IDs.rts'
+        #---------------------------------------------------------------------------
+#         self.default_U_file    = 'input_files/Horn_of_Africa_GPW-v4_pop_count_2020_450sec.tif'
+#         self.default_C1_file   = 'input_files/Horn_of_Africa_GPW-v4_pop_count_2020_450sec.tif'
+#         self.default_C2_file   = '(none, uniform)'
+#         self.default_gui_cfg_file = 'input_files/gui_conflict.cfg'
+        #---------------------------------------------------------------------------
+        self.default_U_file  = '~/conflict/input/Horn_of_Africa_GPW-v4_pop_count_2020_450sec.tif'
+        self.default_C1_file = '~/conflict/input/Horn_of_Africa_GPW-v4_pop_count_2020_450sec.tif'
+        self.default_C2_file = '(none, uniform)'
+        self.default_gui_cfg_file = '~/conflict/input/gui_conflict.cfg'
+        self.default_out_file     = '~/conflict/output/conflicts.rts'
+        self.default_IDs_file     = '~/conflict/output/conflict_IDs.rts'
+        self.default_media_dir    = '~/conflict/media/'
         self.default_create_mp4   = 'No'
         self.default_create_webm  = 'No'
         #-----------------------------------------------------
@@ -360,18 +366,22 @@ class conflict_gui:
                           disabled=False, style=left_style,
                           layout=Layout(width=full_width_px))
         #-----------------------------------------------------------------
+        o3a = widgets.Text(description='Media folder:',
+                          value=self.default_media_dir,
+                          disabled=False, style=left_style,
+                          layout=Layout(width=full_width_px))
         o4a = widgets.SelectionSlider(description='Create MP4 movies?',
                           options=['No', 'Yes'],
                           value=self.default_create_mp4,
                           disabled=False, style=left_style)
-        o4b = widgets.Label(value='(saved in ~/media/movies)')
+        o4b = widgets.Label(value='(saved in media folder)')
         o4  = widgets.HBox([o4a, o4b], 
                            layout=Layout(width=full_width_px) )
         o5a = widgets.SelectionSlider(description='Create WEBM movies?',
                           options=['No', 'Yes'],
                           value=self.default_create_webm,
                           disabled=False, style=left_style)
-        o5b = widgets.Label(value='(saved in ~/media/movies)')
+        o5b = widgets.Label(value='(saved in media folder)')
         o5 = widgets.HBox([o5a, o5b], 
                            layout=Layout(width=full_width_px) )
         #-----------------------------------------------------------------
@@ -384,11 +394,12 @@ class conflict_gui:
         #-------------------------------
         # Arrange widgets in the panel
         #-------------------------------
-        panel = widgets.VBox([o1, o2, o3, o4, o5, o6])
+        panel = widgets.VBox([o1, o2, o3, o3a, o4, o5, o6])
  
         self.output_gui_cfg_file  = o1
         self.output_conflict_file = o2
         self.output_IDs_file      = o3
+        self.output_media_dir     = o3a
         self.output_create_mp4    = o4a
         self.output_create_webm   = o5a
         self.output_panel         = panel
@@ -412,13 +423,20 @@ class conflict_gui:
     #-------------------------------------------------------------------- 
     def write_config_file(self):
     
+        # print('####### Starting write_config_file()...')
         vstr = self.version
+        self.input_status.value = vstr
+ 
         #-----------------------------
         # Open new cfg file to write
         #-----------------------------
         cfg_file = self.output_gui_cfg_file.value
+        self.input_status.value = cfg_file 
         cfg_file = os.path.expanduser( cfg_file )
-        
+ 
+        self.input_status.value = cfg_file       
+        # print('######### cfg_file =', cfg_file)
+
         cfg_unit = open( cfg_file, 'w')
         cfg_unit.write('#-----------------------------------------------\n')
         cfg_unit.write('# Configuration file for Conflict Model v. ' + vstr + '\n')
