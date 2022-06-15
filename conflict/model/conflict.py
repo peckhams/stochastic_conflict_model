@@ -1555,8 +1555,11 @@ class conflict():
         # Matplotlib figures use 72 ppi (points per inch)
         #--------------------------------------------------                
         if (self.CREATE_MP4_MOVIES):
-            output_dir = os.path.expanduser('~/output/')
-            media_dir  = os.path.expanduser('~/media/')
+#             output_dir = os.path.expanduser('~/output/')
+#             media_dir  = os.path.expanduser('~/media/')
+            #-------------------------------------------------
+            output_dir = os.path.expanduser('~/conflict/output/')
+            media_dir  = os.path.expanduser('~/conflict/media/')
 
             #-------------------------------------------------
             # Tried many options here to get good resolution
